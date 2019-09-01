@@ -25,3 +25,6 @@ instance Read Color where
                 then [(result, drop (length match) value')]
                 else tryParse ms
                 where value' = dropWhile isSpace value
+
+-- λ> read "Just [Blue, Red]"::Maybe [Color]
+-- Jus
