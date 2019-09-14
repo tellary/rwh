@@ -28,8 +28,15 @@ globClass "" = globClassOpen ""
 globClass (']':str) = ']':globToRegex' str
 globClass (c:str) = (escape c) ++ globClass str
 
-matchesGlob :: FilePath -> String -> Bool
-matchesGlob name pat = name =~ globToRegex pat
+matchesGlob :: Bool -> FilePath -> String -> Bool
+matchesGlob False name pat = name =~ globToRegex pat
+matchesGlob True  name pat =
+  match
+  (makeRegexOpts
+    (compIgnoreCase + defaultCompOpt)
+    defaultExecOpt
+    $ globToRegex pat)
+  name
 
 bad = globToRegex "fo[.c"
 
