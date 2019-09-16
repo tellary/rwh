@@ -27,15 +27,30 @@ namesMatching' pat =
 
 
 filesMatching :: FilePath -> String -> IO [FilePath]
-filesMatching dir filePat@('.':_) = filesMatching' dir filePat
-filesMatching dir filePat         = filesMatching' dir ("[!.]" ++ filePat)
+filesMatching dir filePat
+  | isPattern filePat = listMatches dir filePat
+  | otherwise = listPlain dir filePat
 
-filesMatching' dir filePat = do
+isHidden ('.':_) = True
+isHidden _ = False
+
+listMatches dir filePat  = do
   files <- catchIOError
            (getDirectoryContents dir)
            (const $ return []) 
   return
     $ map (dir </>)
     $ sortOn (dropWhile (`elem` ".#*") . map toLower)
+    $ filter hidden
     $ filter matches files
   where matches name = matchesGlob False name filePat
+        hidden
+          | isHidden filePat = isHidden
+          | otherwise = not . isHidden
+
+listPlain dir file = do
+  let path = dir </> file
+  e <- doesPathExist path
+  if (e)
+    then return [path]
+    else return []
