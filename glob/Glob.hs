@@ -43,7 +43,9 @@ listMatches dir filePat  = do
     $ sortOn (dropWhile (`elem` ".#*") . map toLower)
     $ filter hidden
     $ filter matches files
-  where matches name = matchesGlob False name filePat
+  where matches name
+          | pathSeparator == '/' = matchesGlob False name filePat
+          | otherwise = matchesGlob True name filePat
         hidden
           | isHidden filePat = isHidden
           | otherwise = not . isHidden
