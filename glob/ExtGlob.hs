@@ -3,7 +3,8 @@ module Glob(namesMatching) where
 import Data.Char(toLower)
 import Data.List(isInfixOf, sortOn)
 import GlobRegex
-import System.Directory(doesPathExist, getDirectoryContents)
+import System.Directory(
+  doesPathExist, getDirectoryContents, listDirectory)
 import System.FilePath
 import System.IO.Error(catchIOError)
 
@@ -18,7 +19,7 @@ namesMatching =
 namesMatchingSplit :: FilePath -> [String] -> IO [FilePath]
 namesMatchingSplit dir [] = return [dir]
 namesMatchingSplit dir (pat:patParts)
-  | isExtPattern pat = undefined
+  | isExtPattern pat = namesMatchingExt dir pat
   | otherwise = do
       paths <- listDir dir pat
       subpaths paths patParts
@@ -47,13 +48,14 @@ listMatches dir filePat  = do
     $ map (dir </>)
     $ sortOn (dropWhile (`elem` ".#*") . map toLower)
     $ filter hidden
-    $ filter matches files
-  where matches name
-          | pathSeparator == '/' = matchesGlob False name filePat
-          | otherwise = matchesGlob True name filePat
-        hidden
+    $ filter (`matches` filePat) files
+  where hidden
           | isHidden filePat = isHidden
           | otherwise = not . isHidden
+
+matches name pat
+  | pathSeparator == '/' = matchesGlob False name pat
+  | otherwise = matchesGlob True name pat
 
 listPlain dir file = do
   let path = dir </> file
@@ -61,3 +63,16 @@ listPlain dir file = do
   if (e)
     then return [path]
     else return []
+
+listAll :: FilePath -> IO [FilePath]
+listAll dir = do
+  files <- catchIOError
+           (listDirectory dir)
+           (const $ return [])
+  sublists <- mapM (listAll . (dir </>)) files
+  return $ dir:concat sublists
+
+namesMatchingExt :: FilePath -> String -> IO [FilePath]
+namesMatchingExt dir pat = do
+  files <- listAll dir
+  return $ filter (`matches` pat) files
