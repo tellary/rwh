@@ -1,12 +1,15 @@
-module Glob(namesMatching) where
+module ExtGlob(namesMatching) where
 
+import Control.Monad(filterM)
 import Data.Char(toLower)
-import Data.List(isInfixOf, sortOn)
+import Data.List(isInfixOf, isPrefixOf, sortOn)
 import GlobRegex
 import System.Directory(
-  doesPathExist, getDirectoryContents, listDirectory)
+  doesPathExist, getDirectoryContents, listDirectory,
+  makeAbsolute, pathIsSymbolicLink)
 import System.FilePath
 import System.IO.Error(catchIOError)
+import System.Posix.Files(readSymbolicLink)
 
 isPattern = any (`elem` "*?[")
 isExtPattern = ("**" `isInfixOf`)
@@ -69,8 +72,20 @@ listAll dir = do
   files <- catchIOError
            (listDirectory dir)
            (const $ return [])
-  sublists <- mapM (listAll . (dir </>)) files
+  files' <- filterM ((not <$>) . isCyclicLink dir) files
+  sublists <- mapM (listAll . (dir </>)) files'
   return $ dir:concat sublists
+
+isCyclicLink dir file = do
+  let path = dir </> file
+  symlink <- pathIsSymbolicLink path
+  if (symlink)
+    then do
+      absoluteDirPath <- makeAbsolute dir
+      targetPath <- readSymbolicLink path
+      absolutTargetPath <- makeAbsolute targetPath
+      return $ absolutTargetPath `isPrefixOf` absolutTargetPath
+    else return False
 
 namesMatchingExt :: FilePath -> String -> IO [FilePath]
 namesMatchingExt dir pat = do
