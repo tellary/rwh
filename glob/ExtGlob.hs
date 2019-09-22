@@ -9,6 +9,7 @@ import System.Directory(
   makeAbsolute, pathIsSymbolicLink)
 import System.FilePath
 import System.IO.Error(catchIOError)
+import System.IO.Unsafe(unsafeInterleaveIO)
 import System.Posix.Files(readSymbolicLink)
 
 isPattern = any (`elem` "*?[")
@@ -73,7 +74,7 @@ listAll dir = do
            (listDirectory dir)
            (const $ return [])
   files' <- filterM ((not <$>) . isCyclicLink dir) files
-  sublists <- mapM (listAll . (dir </>)) files'
+  sublists <- unsafeInterleaveIO $ mapM (listAll . (dir </>)) files'
   return $ dir:concat sublists
 
 isCyclicLink dir file = do
