@@ -37,14 +37,14 @@ subpaths :: [FilePath] -> [String] -> IO [FilePath]
 subpaths paths patParts =
   concat <$> mapM pathAndSubpaths paths
   where
-    pathAndSubpaths path = do
+    pathAndSubpaths path = unsafeInterleaveIO $ do
       subpaths <- namesMatchingSplit path patParts
       return subpaths
 
 isHidden ('.':_) = True
 isHidden _ = False
 
-listMatches dir filePat  = do
+listMatches dir filePat = do
   files <- catchIOError
            (getDirectoryContents dir)
            (const $ return []) 
