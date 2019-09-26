@@ -1,43 +1,66 @@
-module GlobRegex(globToRegex, matchesGlob) where
+module GlobRegex(globToRegex, matchesGlob, GlobError) where
 
 import Text.Regex.Posix
 
-globToRegex g = '^':globToRegex' g ++ "$"
+data GlobError = GlobUnterminatedClass |
+                 GlobEmptyClass deriving Show
 
-globToRegex' "" = ""
-globToRegex' ('[':str) = '[':globClassOpen str
-globToRegex' ('*':str) = ".*" ++ globToRegex' str
-globToRegex' ('?':str) = ".?" ++ globToRegex' str
-globToRegex' (c:str) = (escape c) ++ globToRegex' str
+type GlobRegex = Either GlobError String
+
+globToRegex :: String -> GlobRegex
+globToRegex g = do
+  regex <- globToRegex' g
+  return $ '^':regex ++ "$"
+
+globToRegex' :: String -> GlobRegex
+globToRegex' "" = Right ""
+globToRegex' ('[':str) =
+  globClassOpen str >>= return . ('[':)
+globToRegex' ('*':str) =
+  globToRegex' str >>= return . (".*" ++)
+globToRegex' ('?':str) =
+  globToRegex' str >>= return . (".?" ++ )
+globToRegex' (c:str) =
+  globToRegex' str >>= return . ((escape c) ++)
 
 escape c
   | escapeChar c = '\\':[c]
   | otherwise = [c]
   where escapeChar = (`elem` "\\.+()^${}]|")
 
-globClassOpen "" = error "Unterminated character class"
-globClassOpen (']':_) = error "Empty class"
+globClassOpen :: String -> GlobRegex
+globClassOpen "" = Left GlobUnterminatedClass
+globClassOpen (']':_) = Left GlobEmptyClass
 globClassOpen ('!':str) = globClassOpenN ('!':str)
 globClassOpen str = globClass str
--- matchesGlob "f!!.c" "f[!][!].c"
--- matchesGlob "fa.c" "f[!!].c"
-globClassOpenN ('!':']':str) = '!':']':globToRegex' str
+-- matchesGlob False "f!!.c" "f[!][!].c"
+-- matchesGlob False "fa.c"  "f[!!].c"
+globClassOpenN ('!':']':str) = do
+  r <- globToRegex' str
+  return $ '!':']':r
 globClassOpenN "!" = globClassOpen ""
-globClassOpenN ('!':str) = '^':globClass str
+globClassOpenN ('!':str) =
+  globClass str >>= return . ('^':)
 globClass "" = globClassOpen ""
-globClass (']':str) = ']':globToRegex' str
-globClass (c:str) = (escape c) ++ globClass str
+globClass (']':str) =
+  globToRegex' str >>= return . (']':)
+globClass (c:str) =
+  globClass str >>= return . ((escape c) ++)
 
-matchesGlob :: Bool -> FilePath -> String -> Bool
-matchesGlob False name pat = name =~ globToRegex pat
-matchesGlob True  name pat =
-  match
-  (makeRegexOpts
-    (compIgnoreCase + defaultCompOpt)
-    defaultExecOpt
-    $ globToRegex pat)
-  name
+matchesGlob :: Bool -> FilePath -> String -> Either GlobError Bool
+matchesGlob False name pat = do
+  regex <- globToRegex pat
+  return $ name =~ regex
+matchesGlob True  name pat = do
+  regex <- globToRegex pat
+  return
+    $ match
+      (makeRegexOpts
+         (compIgnoreCase + defaultCompOpt)
+         defaultExecOpt
+         regex)
+      name
 
 bad = globToRegex "fo[.c"
 
--- matchesGlob "fo].c" "fo].c"
+-- matchesGlob False "fo].c" "fo].c"

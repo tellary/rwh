@@ -12,34 +12,37 @@ import System.IO.Error(catchIOError)
 import System.IO.Unsafe(unsafeInterleaveIO)
 import System.Posix.Files(readSymbolicLink)
 
+-- TODO: Fix lazy I/O
+
+type NamesMatching = Either GlobError [FilePath]
+
 isPattern = any (`elem` "*?[")
 isExtPattern = ("**" `isInfixOf`)
 
-namesMatching :: String -> IO [FilePath]
+namesMatching :: String -> IO NamesMatching
 namesMatching =
   namesMatchingSplit ""
   . (map dropTrailingPathSeparator) . splitPath
 
-namesMatchingSplit :: FilePath -> [String] -> IO [FilePath]
-namesMatchingSplit dir [] = return [dir]
+namesMatchingSplit :: FilePath -> [String] -> IO NamesMatching
+namesMatchingSplit dir [] = return $ Right [dir]
 namesMatchingSplit dir (pat:patParts)
   | isExtPattern pat = namesMatchingExt dir pat
   | otherwise = do
-      paths <- listDir dir pat
-      subpaths paths patParts
+      pathsEither <- listDir dir pat
+      case pathsEither of
+        Right paths -> subpaths paths patParts
+        l -> return $ l
 
-listDir :: FilePath -> String -> IO [FilePath]
+listDir :: FilePath -> String -> IO NamesMatching
 listDir dir pat
   | isPattern pat = listMatches dir pat
-  | otherwise = listPlain dir pat
+  | otherwise = Right <$> listPlain dir pat
 
-subpaths :: [FilePath] -> [String] -> IO [FilePath]
+subpaths :: [FilePath] -> [String] -> IO NamesMatching
 subpaths paths patParts =
-  concat <$> mapM pathAndSubpaths paths
-  where
-    pathAndSubpaths path = unsafeInterleaveIO $ do
-      subpaths <- namesMatchingSplit path patParts
-      return subpaths
+  fmap concat . sequence
+  <$> mapM (unsafeInterleaveIO . (`namesMatchingSplit` patParts)) paths
 
 isHidden ('.':_) = True
 isHidden _ = False
@@ -49,10 +52,10 @@ listMatches dir filePat = do
            (getDirectoryContents dir)
            (const $ return []) 
   return
-    $ map (dir </>)
-    $ sortOn (dropWhile (`elem` ".#*") . map toLower)
-    $ filter hidden
-    $ filter (`matches` filePat) files
+     $ map (dir </>)
+    <$> sortOn (dropWhile (`elem` ".#*") . map toLower)
+    <$> filter hidden
+    <$> filterM (`matches` filePat) files
   where hidden
           | isHidden filePat = isHidden
           | otherwise = not . isHidden
@@ -88,7 +91,7 @@ isCyclicLink dir file = do
       return $ absolutTargetPath `isPrefixOf` absolutTargetPath
     else return False
 
-namesMatchingExt :: FilePath -> String -> IO [FilePath]
+namesMatchingExt :: FilePath -> String -> IO NamesMatching
 namesMatchingExt dir pat = do
   files <- listAll dir
-  return $ filter (`matches` pat) files
+  return $ filterM (`matches` pat) files
