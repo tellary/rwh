@@ -1,4 +1,6 @@
-module GlobRegex(globToRegex, matchesGlob, GlobError) where
+module GlobRegex(
+  globToRegex, matchesGlob,
+  makeGlobRegex, GlobError) where
 
 import Text.Regex.Posix
 
@@ -41,26 +43,27 @@ globClassOpenN ('!':']':str) = do
 globClassOpenN "!" = globClassOpen ""
 globClassOpenN ('!':str) =
   globClass str >>= return . ('^':)
+globClassOpenN _ = error "`globClassOpenN` to be only called with '!':_ lists"
 globClass "" = globClassOpen ""
 globClass (']':str) =
   globToRegex' str >>= return . (']':)
 globClass (c:str) =
   globClass str >>= return . ((escape c) ++)
 
-matchesGlob :: Bool -> FilePath -> String -> Either GlobError Bool
-matchesGlob False name pat = do
+makeGlobRegex False pat = do
   regex <- globToRegex pat
-  return $ name =~ regex
-matchesGlob True  name pat = do
+  return $ makeRegex regex
+makeGlobRegex True pat = do
   regex <- globToRegex pat
   return
-    $ match
-      (makeRegexOpts
-         (compIgnoreCase + defaultCompOpt)
-         defaultExecOpt
-         regex)
-      name
+    $ makeRegexOpts (compIgnoreCase + defaultCompOpt)
+      defaultExecOpt regex
 
-bad = globToRegex "fo[.c"
+matchesGlob :: Bool -> FilePath -> String -> Either GlobError Bool
+matchesGlob caseInsensitive name pat = do
+  regex <- makeGlobRegex caseInsensitive pat
+  return $ match regex name
+
+-- bad = globToRegex "fo[.c"
 
 -- matchesGlob False "fo].c" "fo].c"

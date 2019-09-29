@@ -4,6 +4,7 @@ import Control.Monad(filterM)
 import Data.Char(toLower)
 import Data.List(isInfixOf, isPrefixOf, sortOn)
 import GlobRegex
+import Text.Regex.Posix(match, Regex)
 import System.Directory(
   doesPathExist, getDirectoryContents, listDirectory,
   makeAbsolute, pathIsSymbolicLink)
@@ -12,17 +13,28 @@ import System.IO.Error(catchIOError)
 import System.IO.Unsafe(unsafeInterleaveIO)
 import System.Posix.Files(readSymbolicLink)
 
--- TODO: Fix lazy I/O
+-- TODO: namesMatching "/h**/.ssh/*"
 
 type NamesMatching = Either GlobError [FilePath]
 
 isPattern = any (`elem` "*?[")
 isExtPattern = ("**" `isInfixOf`)
 
+hasNoDirectory ('/':_) = False
+hasNoDirectory ('.':'/':_) = False
+hasNoDirectory ('.':'.':'/':_) = False
+hasNoDirectory _ = True
+
 namesMatching :: String -> IO NamesMatching
-namesMatching =
-  namesMatchingSplit ""
-  . (map dropTrailingPathSeparator) . splitPath
+namesMatching pat
+  | hasNoDirectory pat = start ("./" ++ pat)
+  | otherwise          = start pat
+  where
+    start patWithDir = namesMatchingSplit patHead patTail
+      where
+        (patHead:patTail) =
+          map dropTrailingPathSeparator
+          $ splitPath patWithDir
 
 namesMatchingSplit :: FilePath -> [String] -> IO NamesMatching
 namesMatchingSplit dir [] = return $ Right [dir]
@@ -47,22 +59,23 @@ subpaths paths patParts =
 isHidden ('.':_) = True
 isHidden _ = False
 
-listMatches dir filePat = do
-  files <- catchIOError
-           (getDirectoryContents dir)
-           (const $ return []) 
-  return
-     $ map (dir </>)
-    <$> sortOn (dropWhile (`elem` ".#*") . map toLower)
-    <$> filter hidden
-    <$> filterM (`matches` filePat) files
-  where hidden
+-- Little type hint for GHC to use in listMatches
+matchRegex :: Regex -> String -> Bool
+matchRegex = match
+
+listMatches dir filePat = withPattern doListMatches filePat
+  where doListMatches regex = do
+          files <- catchIOError
+                   (getDirectoryContents dir)
+                   (const $ return [])
+          return
+            $ map (dir </>)
+            $ sortOn (dropWhile (`elem` ".#*") . map toLower)
+            $ filter hidden
+            $ filter (matchRegex regex) files
+        hidden
           | isHidden filePat = isHidden
           | otherwise = not . isHidden
-
-matches name pat
-  | pathSeparator == '/' = matchesGlob False name pat
-  | otherwise = matchesGlob True name pat
 
 listPlain dir file = do
   let path = dir </> file
@@ -85,13 +98,23 @@ isCyclicLink dir file = do
   symlink <- pathIsSymbolicLink path
   if (symlink)
     then do
-      absoluteDirPath <- makeAbsolute dir
       targetPath <- readSymbolicLink path
       absolutTargetPath <- makeAbsolute targetPath
       return $ absolutTargetPath `isPrefixOf` absolutTargetPath
     else return False
 
+makeGlobRegexSep pat
+  | pathSeparator == '/' = makeGlobRegex False pat
+  | otherwise = makeGlobRegex True pat
+
+withPattern :: (Regex -> IO b) -> String -> IO (Either GlobError b)
+withPattern f pat =
+  case makeGlobRegexSep pat of
+    Right regex -> Right <$> f regex
+    Left err -> return $ Left err
+
 namesMatchingExt :: FilePath -> String -> IO NamesMatching
-namesMatchingExt dir pat = do
-  files <- listAll dir
-  return $ filterM (`matches` pat) files
+namesMatchingExt dir pat =
+  withPattern
+  (\r -> listAll dir >>= return . filter (match r))
+  (dir </> pat)
