@@ -89,13 +89,18 @@ listPlain dir file = do
     else return []
 
 listAll :: FilePath -> IO [FilePath]
-listAll dir = do
+listAll = fmap tail . (flip listAllSubpaths "")
+
+listAllSubpaths :: FilePath -> FilePath -> IO [FilePath]
+listAllSubpaths dir subpath = do
   files <- catchIOError
-           (listDirectory dir)
+           (listDirectory currentDir)
            (const $ return [])
-  files' <- filterM ((not <$>) . isCyclicLink dir) files
-  sublists <- unsafeInterleaveIO $ mapM (listAll . (dir </>)) files'
-  return $ dir:concat sublists
+  files' <- filterM ((not <$>) . isCyclicLink currentDir) files
+  sublists <- unsafeInterleaveIO
+              $ mapM (listAllSubpaths dir . (subpath </>)) files'
+  return $ subpath:concat sublists
+  where currentDir = dir </> subpath
 
 isCyclicLink dir file = do
   let path = dir </> file
