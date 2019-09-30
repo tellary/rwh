@@ -30,35 +30,33 @@ namesMatching pat
   | hasNoDirectory pat = start ("./" ++ pat)
   | otherwise          = start pat
   where
-    start patWithDir = namesMatchingSplit patHead patTail
+    start "" = return $ Right []
+    start patWithDir =
+      case regexPath of
+        Right path -> Right <$> namesMatchingSplit dir path
+        Left e -> return $ Left e
       where
-        (patHead:patTail) =
-          map dropTrailingPathSeparator
-          $ splitPath patWithDir
+        regexPath =
+          sequence
+          $ map (makeGlobRegexTuple . dropTrailingPathSeparator)
+          $ tail $ splitPath patWithDir
+        dir = head $ splitPath patWithDir
 
-namesMatchingSplit :: FilePath -> [String] -> IO NamesMatching
-namesMatchingSplit dir [] = return $ Right [dir]
+namesMatchingSplit :: FilePath -> [(Regex, String)] -> IO [FilePath]
+namesMatchingSplit dir [] = return [dir]
 namesMatchingSplit dir (pat:patParts) = do
-  pathsEither <- listDir dir pat
-  case pathsEither of
-    Right paths -> subpaths paths patParts
-    l -> return $ l
+  paths <- listDir dir pat
+  subpaths paths patParts
 
-listDir :: FilePath -> String -> IO NamesMatching
+listDir :: FilePath -> (Regex, String) -> IO [FilePath]
 listDir dir pat
-  | isExtPattern pat = namesMatchingExt dir pat
-  | isPattern pat = listMatches dir pat
-  | otherwise = Right <$> listPlain dir pat
+  | isExtPattern (snd pat) = namesMatchingExt dir pat
+  | isPattern (snd pat) = listMatches dir pat
+  | otherwise = listPlain dir $ snd pat
 
-subpaths :: [FilePath] -> [String] -> IO NamesMatching
+subpaths :: [FilePath] -> [(Regex, String)] -> IO [FilePath]
 subpaths paths patParts =
-  fmap concat
-  -- If first result of `namesMatchingSplit` is `Right`,
-  -- then we could assume subsequent results will be also `Right`,
-  -- because pattern compiles.
-  -- This is workaround for `sequence` of `Either` being eager.
-  . sequenceFailFirst
-  <$> lazyMapM (`namesMatchingSplit` patParts) paths
+  concat <$> lazyMapM (`namesMatchingSplit` patParts) paths
 
 isHidden ('.':_) = True
 isHidden _ = False
@@ -67,19 +65,19 @@ isHidden _ = False
 matchRegex :: Regex -> String -> Bool
 matchRegex = match
 
-listMatches dir filePat = withPattern doListMatches filePat
-  where doListMatches regex = do
-          files <- catchIOError
-                   (getDirectoryContents dir)
-                   (const $ return [])
-          return
-            $ map (dir </>)
-            $ sortOn (dropWhile (`elem` ".#*") . map toLower)
-            $ filter hidden
-            $ filter (matchRegex regex) files
-        hidden
-          | isHidden filePat = isHidden
-          | otherwise = not . isHidden
+listMatches dir (regex, filePat) = do
+  files <- catchIOError
+           (getDirectoryContents dir)
+           (const $ return [])
+  return
+    $ map (dir </>)
+    $ sortOn (dropWhile (`elem` ".#*") . map toLower)
+    $ filter hidden
+    $ filter (matchRegex regex) files
+  where
+    hidden
+      | isHidden filePat = isHidden
+      | otherwise = not . isHidden
 
 listPlain dir file = do
   let path = dir </> file
@@ -88,17 +86,17 @@ listPlain dir file = do
     then return [path]
     else return []
 
-listAll :: FilePath -> IO [FilePath]
-listAll = fmap tail . (flip listAllSubpaths "")
+listAllRelative :: FilePath -> IO [FilePath]
+listAllRelative = fmap tail . flip listAllRelativeSubpaths ""
 
-listAllSubpaths :: FilePath -> FilePath -> IO [FilePath]
-listAllSubpaths dir subpath = do
+listAllRelativeSubpaths :: FilePath -> FilePath -> IO [FilePath]
+listAllRelativeSubpaths dir subpath = do
   files <- catchIOError
            (listDirectory currentDir)
            (const $ return [])
   files' <- filterM ((not <$>) . isCyclicLink currentDir) files
   sublists <- unsafeInterleaveIO
-              $ mapM (listAllSubpaths dir . (subpath </>)) files'
+              $ mapM (listAllRelativeSubpaths dir . (subpath </>)) files'
   return $ subpath:concat sublists
   where currentDir = dir </> subpath
 
@@ -112,28 +110,18 @@ isCyclicLink dir file = do
       return $ absolutTargetPath `isPrefixOf` absolutTargetPath
     else return False
 
-makeGlobRegexSep pat
-  | pathSeparator == '/' = makeGlobRegex False pat
-  | otherwise = makeGlobRegex True pat
+makeGlobRegexTuple :: String -> Either GlobError (Regex, String)
+makeGlobRegexTuple pat =
+  case build of
+    Right r -> Right (r, pat)
+    Left l -> Left l
+  where build
+          | pathSeparator == '/' = makeGlobRegex False pat
+          | otherwise = makeGlobRegex True pat
 
-withPattern :: (Regex -> IO b) -> String -> IO (Either GlobError b)
-withPattern f pat =
-  case makeGlobRegexSep pat of
-    Right regex -> Right <$> f regex
-    Left err -> return $ Left err
-
-namesMatchingExt :: FilePath -> String -> IO NamesMatching
-namesMatchingExt dir pat =
-  withPattern
-  (\r -> listAll dir >>= return . filter (match r))
-  (dir </> pat)
-
-unsafeRight (Right x) = x
-unsafeRight _ = error "Left is unexpected"
-
-sequenceFailFirst ((Right x):xs) = Right $ x:map unsafeRight xs
-sequenceFailFirst (Left e:_) = Left e
-sequenceFailFirst [] = Right []
+namesMatchingExt :: FilePath -> (Regex, String) -> IO [FilePath]
+namesMatchingExt dir (r, _) =
+  listAllRelative dir >>= return . map (dir </>) . filter (match r)
 
 -- Dirty hack from here:
 -- https://stackoverflow.com/a/12609802/1060693
