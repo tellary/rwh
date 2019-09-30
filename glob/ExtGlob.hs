@@ -13,7 +13,7 @@ import System.IO.Error(catchIOError)
 import System.IO.Unsafe(unsafeInterleaveIO)
 import System.Posix.Files(readSymbolicLink)
 
--- TODO: namesMatching "/h**/.ssh/*"
+-- TODO: namesMatching "/h**/.ssh/id_r[sa"
 
 type NamesMatching = Either GlobError [FilePath]
 
@@ -38,23 +38,27 @@ namesMatching pat
 
 namesMatchingSplit :: FilePath -> [String] -> IO NamesMatching
 namesMatchingSplit dir [] = return $ Right [dir]
-namesMatchingSplit dir (pat:patParts)
-  | isExtPattern pat = namesMatchingExt dir pat
-  | otherwise = do
-      pathsEither <- listDir dir pat
-      case pathsEither of
-        Right paths -> subpaths paths patParts
-        l -> return $ l
+namesMatchingSplit dir (pat:patParts) = do
+  pathsEither <- listDir dir pat
+  case pathsEither of
+    Right paths -> subpaths paths patParts
+    l -> return $ l
 
 listDir :: FilePath -> String -> IO NamesMatching
 listDir dir pat
+  | isExtPattern pat = namesMatchingExt dir pat
   | isPattern pat = listMatches dir pat
   | otherwise = Right <$> listPlain dir pat
 
 subpaths :: [FilePath] -> [String] -> IO NamesMatching
 subpaths paths patParts =
-  fmap concat . sequence
-  <$> mapM (unsafeInterleaveIO . (`namesMatchingSplit` patParts)) paths
+  fmap concat
+  -- If first result of `namesMatchingSplit` is `Right`,
+  -- then we could assume subsequent results will be also `Right`,
+  -- because pattern compiles.
+  -- This is workaround for `sequence` of `Either` being eager.
+  . sequenceFailFirst
+  <$> lazyMapM (`namesMatchingSplit` patParts) paths
 
 isHidden ('.':_) = True
 isHidden _ = False
@@ -118,3 +122,20 @@ namesMatchingExt dir pat =
   withPattern
   (\r -> listAll dir >>= return . filter (match r))
   (dir </> pat)
+
+unsafeRight (Right x) = x
+unsafeRight _ = error "Left is unexpected"
+
+sequenceFailFirst ((Right x):xs) = Right $ x:map unsafeRight xs
+sequenceFailFirst (Left e:_) = Left e
+sequenceFailFirst [] = Right []
+
+-- Dirty hack from here:
+-- https://stackoverflow.com/a/12609802/1060693
+-- It's necessary to make the following work in reasonable time:
+-- fmap (take 2) <$> namesMatching "/h**/.ssh/*"
+lazyMapM :: (a -> IO b) -> [a] -> IO [b]
+lazyMapM _ [] = return []
+lazyMapM f (x:xs) = do y <- f x
+                       ys <- unsafeInterleaveIO $ lazyMapM f xs
+                       return (y:ys)
