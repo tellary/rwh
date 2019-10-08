@@ -1,19 +1,12 @@
 module ControlledVisit where
 
 import Control.Monad    (forM)
+import Info             (Info)
 import LazyIO           (lazyForM)
-import System.Directory (Permissions, getPermissions,
+import System.Directory (getPermissions,
                          listDirectory, searchable)
 import System.FilePath  (FilePath, (</>))
 import System.IO.Error  (catchIOError)
-import System.Time      (ClockTime)
-
-data Info = Info {
-  infoPath    :: FilePath,
-  infoPerms   :: Maybe Permissions,
-  infoSize    :: Maybe Int,
-  infoModTime :: Maybe ClockTime
-  } deriving (Eq, Ord, Show)
 
 myTraverse :: ([Info] -> [Info]) -> FilePath -> IO [Info]
 myTraverse order path = do
