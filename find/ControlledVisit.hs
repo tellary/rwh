@@ -1,17 +1,18 @@
 module ControlledVisit where
 
-import Control.Monad     (forM)
 import Control.Exception (bracket)
 import Info
 import LazyIO            (lazyForM)
-import Data.List         (sort, sortBy)
+import Data.List         (isPrefixOf, sort, sortBy)
 import Data.Ord          (Down(..), comparing)
 import System.Directory  (getModificationTime, getPermissions,
-                          listDirectory, searchable)
+                          listDirectory, makeAbsolute,
+                          pathIsSymbolicLink, searchable)
 import System.FilePath   (FilePath, (</>))
 import System.IO         (IOMode(ReadMode), openFile,
                           hFileSize, hClose)
 import System.IO.Error   (catchIOError)
+import System.Posix.Files(readSymbolicLink)
 
 -- import System.Directory
 -- import System.FilePath
@@ -24,7 +25,11 @@ myTraverse order path = do
   names <- listDirectory path
   content <- fmap order $ mapM getInfo $ path:map (path </>) names
   fmap concat $ lazyForM content $ \info ->
-    do if infoDirectory info && infoPath info /= path
+    do
+      cyclic <- isCyclicLink path
+      if infoDirectory info &&
+           infoPath info /= path &&
+           not cyclic
          then myTraverse order $ infoPath info
          else return [info]
 
@@ -52,3 +57,13 @@ postOrder = cycleOnce
 asc, desc :: [Info] -> [Info]
 asc = sort
 desc = sortBy (comparing Down)
+
+-- Duplicate from `ExtGlob` with minor change
+isCyclicLink path = do
+  symlink <- pathIsSymbolicLink path
+  if (symlink)
+    then do
+      targetPath <- readSymbolicLink path
+      absolutTargetPath <- makeAbsolute targetPath
+      return $ absolutTargetPath `isPrefixOf` absolutTargetPath
+    else return False
