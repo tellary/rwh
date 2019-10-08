@@ -1,0 +1,6 @@
+Name:              lazy-io
+Version:           0.1-SNAPSHOT
+Build-Type:        Simple
+library
+  Exposed-Modules: LazyIO
+  Build-Depends:   base >= 2.0

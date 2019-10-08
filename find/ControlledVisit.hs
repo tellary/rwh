@@ -1,6 +1,7 @@
 module ControlledVisit where
 
 import Control.Monad    (forM)
+import LazyIO           (lazyForM)
 import System.Directory (Permissions, getPermissions,
                          listDirectory, searchable)
 import System.FilePath  (FilePath, (</>))
@@ -18,7 +19,7 @@ myTraverse :: ([Info] -> [Info]) -> FilePath -> IO [Info]
 myTraverse order path = do
   names <- listDirectory path
   content <- fmap order $ mapM getInfo $ path:map (path </>) names
-  fmap concat $ forM content $ \info ->
+  fmap concat $ lazyForM content $ \info ->
     do if infoDirectory info && infoPath info /= path
          then myTraverse order $ infoPath info
          else return [info]

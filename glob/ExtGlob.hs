@@ -4,6 +4,7 @@ import Control.Monad(filterM)
 import Data.Char(toLower)
 import Data.List(isInfixOf, isPrefixOf, sortOn)
 import GlobRegex
+import LazyIO(lazyMapM)
 import Text.Regex.Posix(match, Regex)
 import System.Directory(
   doesPathExist, getDirectoryContents, listDirectory,
@@ -123,12 +124,4 @@ namesMatchingExt :: FilePath -> (Regex, String) -> IO [FilePath]
 namesMatchingExt dir (r, _) =
   listAllRelative dir >>= return . map (dir </>) . filter (match r)
 
--- Dirty hack from here:
--- https://stackoverflow.com/a/12609802/1060693
--- It's necessary to make the following work in reasonable time:
--- fmap (take 2) <$> namesMatching "/h**/.ssh/*"
-lazyMapM :: (a -> IO b) -> [a] -> IO [b]
-lazyMapM _ [] = return []
-lazyMapM f (x:xs) = do y <- f x
-                       ys <- unsafeInterleaveIO $ lazyMapM f xs
-                       return (y:ys)
+
