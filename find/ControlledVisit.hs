@@ -17,7 +17,9 @@ import System.Posix.Files(readSymbolicLink)
 -- import System.Directory
 -- import System.FilePath
 -- myTraverse2 id (takeExtension <$>? infoPath ==?? ".hs" &&? infoSize >?? Just 1024) ".."
--- Finds all `.hs` files more than 1K in all subdirectories
+-- Finds all `.hs` files more than 1K
+-- fmap infoPath <$> myTraverse2 id (takeExtension <$>? infoPath ==?? ".hs" &&? infoSize >?? Just 1024) ".." >>= putStr . unlines
+-- ... or all subdirectories
 -- fmap infoPath <$> myTraverse2 id (fmap searchable . infoPerms ==?? Just True ||? takeExtension <$>? infoPath ==?? ".hs" &&? infoSize >?? Just 1024) ".." >>= putStr . unlines
 
 myTraverse :: ([Info] -> [Info]) -> FilePath -> IO [Info]
@@ -33,7 +35,7 @@ myTraverse order path = do
          then myTraverse order $ infoPath info
          else return [info]
 
-myTraverse2 order filterP = myTraverse (order . filter filterP)
+myTraverse2 order filterP = fmap (filter filterP) . myTraverse order
 
 getInfo :: FilePath -> IO Info
 getInfo path = do
