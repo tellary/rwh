@@ -6,7 +6,7 @@ module Parser(getState, parse, parseS,
 
 import qualified Data.ByteString.Lazy       as L
 import qualified Data.ByteString.Lazy.Char8 as L8
-import           Data.Char (chr, isSpace)
+import           Data.Char (chr, isDigit, isSpace)
 import           Data.Word
 import           Prelude hiding (take, takeWhile)
 
@@ -15,10 +15,8 @@ data ParseState = ParseState
   deriving Show
 
 newtype Parse a = Parse {
-    runParse :: ParseState -> ParseResult a
+    runParse :: ParseState -> Either String (a, ParseState)
   }
-
-type ParseResult a = Either String (a, ParseState)
 
 parse  p s = runParse p $ ParseState 0 s
 parseS p s = parse p $ L8.pack s
@@ -70,16 +68,25 @@ peek p = do
   setState s
   return a
 
+peekMaybe :: Parse a -> Parse (Maybe a)
+peekMaybe p = Parse $ \s ->
+  case runParse p s of
+    Left _ -> Right (Nothing, s)
+    Right (a, _) -> Right (Just a, s)
+
 takeWhile :: (a -> Bool) -> Parse a -> Parse [a]
 takeWhile f p = do
-  a <- peek p
-  if f a
-    then
-    do
-      a' <- p
-      t  <- takeWhile f p
-      return (a':t)
-    else return []
+  ma <- peekMaybe p
+  case ma of
+    Nothing -> return []
+    Just a ->
+      if f a
+      then
+        do
+          a' <- p
+          t  <- takeWhile f p
+          return (a':t)
+      else return []
 
 take :: Int -> Parse a -> Parse [a]
 take 0 _ = return []
@@ -87,9 +94,32 @@ take n p = do
   a <- p
   t <- take (n - 1) p
   return $ a:t
-  
+
+-- null p = maybe True (const False) <$> peekMaybe p
+
 parseBytes = (`take` parseByte)
 parseChars = (`take` parseChar)
+
+parseInt :: Parse Int
+parseInt = do
+  c <- peek parseChar
+  if c == '-'
+    then do
+      parseChar
+      parse (-1)
+    else parse 1
+  where parse sign = do
+          s <- takeWhile isDigit parseChar
+          if null s
+            then fail "No digits"
+            else return $ sign * (read s)
+
+parseNat :: Parse Int
+parseNat = do
+  i <- parseInt
+  if (i > 0)
+    then return i
+    else fail "Negative number"
 
 takeWhileNotSpace = takeWhile (not . isSpace)
 takeWhileSpace    = takeWhile isSpace
