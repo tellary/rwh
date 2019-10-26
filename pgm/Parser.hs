@@ -1,5 +1,5 @@
 module Parser(getState, parse, parseS,
-              parseByte, setState,
+              parseChar, parseByte, setState,
               take, takeWhile,
               takeWhileNotSpace, takeWhileSpace,
               Parse) where
@@ -12,7 +12,13 @@ import           Prelude hiding (take, takeWhile)
 
 data ParseState = ParseState
   { offset :: Int, string :: L.ByteString }
-  deriving Show
+
+instance Show ParseState where
+  show s = "{ offset=" ++ (show $ offset s) ++", string=" ++ str ++ "}"
+    where str     = show $ h ++ t
+          (h, t)  = fmap dots $ splitAt 10 $ L8.unpack $ string s
+          dots "" = ""
+          dots _  = "..."
 
 newtype Parse a = Parse {
     runParse :: ParseState -> Either String (a, ParseState)
