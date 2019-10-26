@@ -1,8 +1,11 @@
-module Parser(getState, parse, parseS,
-              parseChar, parseByte, setState,
-              take, takeWhile,
+module Parser(assert, byte, bytes,
+              byteString,
+              char, getState, parse,
+              parseS, peek,
+              parseNat,
+              setState, take, takeWhile,
               takeWhileNotSpace, takeWhileSpace,
-              Parse) where
+              Parse, ParseState) where
 
 import qualified Data.ByteString.Lazy       as L
 import qualified Data.ByteString.Lazy.Char8 as L8
@@ -14,7 +17,7 @@ data ParseState = ParseState
   { offset :: Int, string :: L.ByteString }
 
 instance Show ParseState where
-  show s = "{ offset=" ++ (show $ offset s) ++", string=" ++ str ++ "}"
+  show s = "ParseState offset=" ++ (show $ offset s) ++", string=" ++ str
     where str     = show $ h ++ t
           (h, t)  = fmap dots $ splitAt 10 $ L8.unpack $ string s
           dots "" = ""
@@ -52,8 +55,12 @@ instance Monad Parse where
   fail msg = Parse $ \s ->
     Left $ "Error at offset " ++ (show $ offset s) ++ ": " ++ msg
 
-parseByte :: Parse Word8
-parseByte = do
+assert :: String -> Bool -> Parse ()
+assert _ True  = return ()
+assert m False = fail m
+
+byte :: Parse Word8
+byte = do
   s <- getState
   case L.uncons $ string s of
     Nothing -> fail "Empty string"
@@ -64,8 +71,8 @@ parseByte = do
         }
       return h
       
-parseChar :: Parse Char
-parseChar = chr . fromIntegral <$> parseByte
+char :: Parse Char
+char = chr . fromIntegral <$> byte
 
 peek :: Parse a -> Parse a
 peek p = do
@@ -103,19 +110,28 @@ take n p = do
 
 -- null p = maybe True (const False) <$> peekMaybe p
 
-parseBytes = (`take` parseByte)
-parseChars = (`take` parseChar)
+bytes = (`take` byte)
+chars = (`take` char)
+
+byteString n = do
+  s <- getState
+  setState $ s {
+    offset = offset s + n,
+    string = L.drop n64 $ string s
+    }
+  return $ L.take n64 $ string s
+  where n64 = fromInteger $ toInteger n
 
 parseInt :: Parse Int
 parseInt = do
-  c <- peek parseChar
+  c <- peek char
   if c == '-'
     then do
-      parseChar
+      char
       parse (-1)
     else parse 1
   where parse sign = do
-          s <- takeWhile isDigit parseChar
+          s <- takeWhile isDigit char
           if null s
             then fail "No digits"
             else return $ sign * (read s)
@@ -127,5 +143,5 @@ parseNat = do
     then return i
     else fail "Negative number"
 
-takeWhileNotSpace = takeWhile (not . isSpace)
-takeWhileSpace    = takeWhile isSpace
+takeWhileNotSpace = takeWhile (not . isSpace) char
+takeWhileSpace    = takeWhile isSpace char
