@@ -2,9 +2,9 @@ module Parser(assert, byte, bytes,
               byteString,
               char, getState, parse,
               parseIO, parseS, peek,
-              parseNat,
-              setState, take, takeWhile,
-              takeWhileNotSpace, takeWhileSpace,
+              nat, setState, take,
+              takeWhile, takeWhileNotSpace,
+              takeWhileSpace,
               Parse, ParseState) where
 
 import           Control.Monad.Trans.Except (ExceptT(..))
@@ -139,10 +139,10 @@ parseInt = do
             then fail "No digits"
             else return $ sign * (read s)
 
-parseNat :: Parse Int
-parseNat = do
+nat :: Parse Int
+nat = do
   i <- parseInt
-  if (i > 0)
+  if (i >= 0)
     then return i
     else fail "Negative number"
 

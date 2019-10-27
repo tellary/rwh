@@ -27,19 +27,19 @@ skipToNextBlock = do
     else return ()
 
 parseRawPGM = do
-  header <- P.takeWhileNotSpace
+  header  <- P.takeWhileNotSpace
   P.assert "Invalid raw header" $ header == "P5"
   skipToNextBlock
-  width  <- P.parseNat
+  width   <- P.nat
   skipToNextBlock
-  height <- P.parseNat
+  height  <- P.nat
   skipToNextBlock
-  maxGrey <- P.parseNat
+  maxGrey <- P.nat
   P.assert
     ("Max grey must be less than 65536, but was " ++ show maxGrey) $
     maxGrey < 65536
   skipToNextBlock
-  bitmap <- P.byteString $ width*height
+  bitmap  <- P.byteString $ width*height
   let size64 = fromIntegral $ toInteger $ height*width
   P.assert
     ("Bitmap too short. " ++
@@ -48,3 +48,24 @@ parseRawPGM = do
      (show $ L.length bitmap) ++ " is found") $
     L.length bitmap == size64
   return $ Greymap width height maxGrey bitmap
+
+plainPGMNat = do
+  takeWhileSpace
+  nat
+
+parsePlainPGM = do
+  header  <- P.takeWhileNotSpace
+  P.assert "Invalid raw header" $ header == "P2"
+  skipToNextBlock
+  width   <- P.nat
+  skipToNextBlock
+  height  <- P.nat
+  skipToNextBlock
+  maxGrey <- P.nat
+  P.assert
+    ("Max grey must be less than 65536, but was " ++ show maxGrey) $
+    maxGrey < 65536
+  skipToNextBlock
+  bitmap  <- P.take (width*height) plainPGMNat
+  return $ Greymap width height maxGrey
+    $ L.pack $ map (fromInteger . toInteger) bitmap
