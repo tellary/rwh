@@ -1,12 +1,13 @@
 module Parser(assert, byte, bytes,
               byteString,
               char, getState, parse,
-              parseS, peek,
+              parseIO, parseS, peek,
               parseNat,
               setState, take, takeWhile,
               takeWhileNotSpace, takeWhileSpace,
               Parse, ParseState) where
 
+import           Control.Monad.Trans.Except (ExceptT(..))
 import qualified Data.ByteString.Lazy       as L
 import qualified Data.ByteString.Lazy.Char8 as L8
 import           Data.Char (chr, isDigit, isSpace)
@@ -27,8 +28,10 @@ newtype Parse a = Parse {
     runParse :: ParseState -> Either String (a, ParseState)
   }
 
-parse  p s = runParse p $ ParseState 0 s
-parseS p s = parse p $ L8.pack s
+parse   p s = runParse p $ ParseState 0 s
+parseS  p s = parse p $ L8.pack s
+parseIO :: Parse a -> IO L.ByteString -> ExceptT String IO (a, ParseState)
+parseIO p s = ExceptT $ parse p <$> s
 
 getState   = Parse $ \s -> Right (s, s)
 setState s = Parse $ \_ -> Right (s, s)
