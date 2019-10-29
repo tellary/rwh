@@ -1,6 +1,6 @@
 module Parser(assert, byte, bytes,
               byteString,
-              char, getState, parse,
+              char, chars, getState, parse,
               parseIO, parseS, peek,
               nat, setState, take,
               takeWhile, takeWhileNotSpace,

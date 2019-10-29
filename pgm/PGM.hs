@@ -1,8 +1,13 @@
-module PGM(parseRawPGM) where
+module PGM(convertPlainToRawPGM, plainPGM,
+           rawPGM, writeRawPGM, writeRawPGMIO) where
 
+import           Control.Monad.Trans.Except
+                 (runExceptT, ExceptT(..))
 import qualified Data.ByteString.Lazy       as L
-import qualified Data.ByteString.Lazy.Char8 as L8
+import           Control.Monad.Trans.Class
+                 (lift)
 import           Parser                     as P
+import           System.IO (appendFile)
 
 data Greymap = Greymap {
   greyWidth  :: Int,
@@ -26,7 +31,7 @@ skipToNextBlock = do
       skipToNextBlock
     else return ()
 
-parseRawPGM = do
+rawPGM = do
   header  <- P.takeWhileNotSpace
   P.assert "Invalid raw header" $ header == "P5"
   skipToNextBlock
@@ -53,7 +58,7 @@ plainPGMNat = do
   takeWhileSpace
   nat
 
-parsePlainPGM = do
+plainPGM = do
   header  <- P.takeWhileNotSpace
   P.assert "Invalid raw header" $ header == "P2"
   skipToNextBlock
@@ -69,3 +74,20 @@ parsePlainPGM = do
   bitmap  <- P.take (width*height) plainPGMNat
   return $ Greymap width height maxGrey
     $ L.pack $ map (fromInteger . toInteger) bitmap
+
+writeRawPGM f g = do
+  appendFile   f "P5\n"
+  appendFile   f $ show $ greyWidth g
+  appendFile   f " "
+  appendFile   f $ show $ greyHeight g
+  appendFile   f "\n"
+  appendFile   f $ show $ greyMax g
+  appendFile   f "\n"
+  L.appendFile f $ greyData g
+
+writeRawPGMIO :: FilePath -> ExceptT String IO Greymap -> ExceptT String IO ()
+writeRawPGMIO f g = g >>= (lift . writeRawPGM f)
+
+convertPlainToRawPGM i o = runExceptT $ do
+  (g, _) <- parseIO plainPGM $ L.readFile i
+  lift $ writeRawPGM o g
