@@ -123,7 +123,7 @@ byteString n = do
     string = L.drop n64 $ string s
     }
   return $ L.take n64 $ string s
-  where n64 = fromInteger $ toInteger n
+  where n64 = fromIntegral n
 
 parseInt :: Parse Int
 parseInt = do

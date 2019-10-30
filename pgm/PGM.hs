@@ -3,7 +3,9 @@ module PGM(convertPlainToRawPGM, plainPGM,
 
 import           Control.Monad.Trans.Except
                  (runExceptT, ExceptT(..))
+import           Data.Bits(shift)
 import qualified Data.ByteString.Lazy       as L
+import           Data.Word(Word8)
 import           Control.Monad.Trans.Class
                  (lift)
 import           Parser                     as P
@@ -43,9 +45,11 @@ rawPGM = do
   P.assert
     ("Max grey must be less than 65536, but was " ++ show maxGrey) $
     maxGrey < 65536
+  let bytesPerPixel = if maxGrey < 256 then 1 else 2
   skipToNextBlock
-  bitmap  <- P.byteString $ width*height
-  let size64 = fromIntegral $ toInteger $ height*width
+  let size = width*height*bytesPerPixel
+  bitmap  <- P.byteString $ size
+  let size64 = fromIntegral $ toInteger $ size
   P.assert
     ("Bitmap too short. " ++
      show width ++ "x" ++ show height ++ "=" ++ show (height*width) ++
@@ -73,7 +77,13 @@ plainPGM = do
   skipToNextBlock
   bitmap  <- P.take (width*height) plainPGMNat
   return $ Greymap width height maxGrey
-    $ L.pack $ map (fromInteger . toInteger) bitmap
+    $ L.pack $ i2w =<< bitmap
+
+i2w :: Int -> [Word8]
+i2w i
+  | i < 256   = [fromIntegral i]
+  | i < 65536 = [fromIntegral $ shift i (-8), fromIntegral i]
+  | otherwise = error "Only two-byte integers are supported"
 
 writeRawPGM f g = do
   appendFile   f "P5\n"
