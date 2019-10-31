@@ -6,6 +6,9 @@ import           Control.Monad.Trans.Except
 import           Data.Bits(shift)
 import qualified Data.ByteString.Lazy       as L
 import           Data.Word(Word8)
+import qualified Data.ByteString.Lazy.Char8 as L8
+import           Data.Char
+                 (isDigit, isSpace)
 import           Control.Monad.Trans.Class
                  (lift)
 import           Parser                     as P
@@ -58,11 +61,43 @@ rawPGM = do
     L.length bitmap == size64
   return $ Greymap width height maxGrey bitmap
 
+spanPlainPGMNat :: L.ByteString -> Either String (Int, Int, L.ByteString)
+spanPlainPGMNat s =
+  if natStr /= L.empty
+  then
+    case L8.uncons t2 of
+      Just (h, _)
+        | isSpace h -> Right (read $ L8.unpack natStr, consumed, t2)
+        | otherwise -> Left "Not a digit"
+      Nothing -> Right (read $ L8.unpack natStr, consumed, L.empty)
+  else
+    Left "Not a digit"
+  where
+    (spaces, t1) = L8.span isSpace s
+    (natStr, t2) = L8.span isDigit t1
+    consumed = fromIntegral $ L.length spaces + L.length natStr
+
+spanPlainPGMData :: L.ByteString -> ([Int], Int, L.ByteString)
+spanPlainPGMData s = loop ([], 0, s)
+  where
+    loop (is, c, s) =
+      case spanPlainPGMNat s of
+        Right (i, c', s') -> loop (i:is, c + c', s')
+        Left _ -> (is, c, s)
+
+plainPGMData = do
+  s <- getState
+  let (d, c, t) = spanPlainPGMData $ string s
+  setState $ s { string = t, offset = offset s + c }
+  return $ reverse d
+
 plainPGMNat = do
   takeWhileSpace
   nat
 
-plainPGM = do
+plainPGMDataSlow size = P.take size plainPGMNat
+
+plainPGMTemplate bitmapF = do
   header  <- P.takeWhileNotSpace
   P.assert "Invalid raw header" $ header == "P2"
   skipToNextBlock
@@ -75,7 +110,7 @@ plainPGM = do
     ("Max grey must be less than 65536, but was " ++ show maxGrey) $
     maxGrey < 65536
   skipToNextBlock
-  bitmap  <- P.take (width*height) plainPGMNat
+  bitmap <- bitmapF (width*height)
   return $ Greymap width height maxGrey
     $ L.pack $ i2w =<< bitmap
 
@@ -84,6 +119,9 @@ i2w i
   | i < 256   = [fromIntegral i]
   | i < 65536 = [fromIntegral $ shift i (-8), fromIntegral i]
   | otherwise = error "Only two-byte integers are supported"
+
+plainPGM     = plainPGMTemplate $ \_ -> plainPGMData
+plainPGMSlow = plainPGMTemplate plainPGMDataSlow
 
 writeRawPGM f g = do
   appendFile   f "P5\n"

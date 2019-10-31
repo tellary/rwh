@@ -2,10 +2,11 @@ module Parser(assert, byte, bytes,
               byteString,
               char, chars, getState, parse,
               parseIO, parseS, peek,
-              nat, setState, take,
+              nat, offset, string,
+              setState, take,
               takeWhile, takeWhileNotSpace,
               takeWhileSpace,
-              Parse, ParseState) where
+              Parse) where
 
 import           Control.Monad.Trans.Except (ExceptT(..))
 import qualified Data.ByteString.Lazy       as L
