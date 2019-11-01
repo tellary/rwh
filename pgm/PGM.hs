@@ -1,4 +1,5 @@
-module PGM(convertPlainToRawPGM, plainPGM,
+module PGM(convertPlainToRawPGM, pgm,
+           plainPGM, plainPGMSlow,
            rawPGM, writeRawPGM, writeRawPGMIO) where
 
 import           Control.Monad.Trans.Except
@@ -122,6 +123,16 @@ i2w i
 
 plainPGM     = plainPGMTemplate $ \_ -> plainPGMData
 plainPGMSlow = plainPGMTemplate plainPGMDataSlow
+
+pgmTemplate plainPGMImpl = do
+  header <- peek P.takeWhileNotSpace
+  selectPGM header
+  where
+    selectPGM "P2" = plainPGMImpl
+    selectPGM "P5" = rawPGM
+    selectPGM h    = do fail $ "Unknown header '" ++ h ++ "'"
+
+pgm = pgmTemplate plainPGM
 
 writeRawPGM f g = do
   appendFile   f "P5\n"
