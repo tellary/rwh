@@ -1,1 +1,1 @@
--Wall -Wno-missing-signatures -Wno-name-shadowing -Wno-unused-bind -Wno-unused-do-bind
+-Wall -Wno-missing-signatures -Wno-name-shadowing -Wno-unused-do-bind -Wno-orphans

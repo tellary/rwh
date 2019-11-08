@@ -63,7 +63,7 @@ compact d = process [d]
             a `Union` _ -> process (a:ds)
 
 width width d = best 0 [d]
-  where best col [] = []
+  where best _   [] = []
         best col (d:ds) =
           case d of
             Text s -> s ++ best (col + length s) ds
@@ -78,9 +78,9 @@ width width d = best 0 [d]
                            (best col (b:ds))
 
 w `fits` _ | w < 0 = False
-w `fits` "" = True
-w `fits` ('\n':_) = True
-w `fits` (c:cs) = (w - 1) `fits` cs
+_ `fits` "" = True
+_ `fits` ('\n':_) = True
+w `fits` (_:cs) = (w - 1) `fits` cs
 
 fillChar char width d = best 0 [d]
   where best col [] = replicate (charsLeft width col) char
