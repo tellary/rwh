@@ -1,18 +1,19 @@
-module PGM(convertPlainToRawPGM, pgm,
-           plainPGM, plainPGMSlow,
-           rawPGM, writeRawPGM, writeRawPGMIO) where
+module PGM (convertPlainToRawPGM, pgm,
+            plainPGM, plainPGMSlow,
+            rawPGM, writeRawPGM, writeRawPGMIO) where
 
 import           Control.Monad.Trans.Except
                  (runExceptT, ExceptT(..))
-import           Data.Bits(shift)
+import           Data.Bits (shift)
 import qualified Data.ByteString.Lazy       as L
-import           Data.Word(Word8)
+import           Data.Word (Word8)
 import qualified Data.ByteString.Lazy.Char8 as L8
 import           Data.Char
                  (isDigit, isSpace)
 import           Control.Monad.Trans.Class
                  (lift)
-import           Parser                     as P
+import           NetpbmCommon (skipToNextBlock)
+import qualified Parser                     as P
 import           System.IO (appendFile)
 
 data Greymap = Greymap {
@@ -25,17 +26,6 @@ data Greymap = Greymap {
 instance Show Greymap where
   show (Greymap w h m _) =
     "Greymap " ++ show w ++ "x" ++ show h ++ " " ++ show m
-
-skipComment = P.takeWhile ((/= '\n')) char
-
-skipToNextBlock = do
-  takeWhileSpace
-  c <- P.peek P.char
-  if c == '#'
-    then do
-      skipComment
-      skipToNextBlock
-    else return ()
 
 rawPGM = do
   header  <- P.takeWhileNotSpace
@@ -51,9 +41,9 @@ rawPGM = do
     maxGrey < 65536
   let bytesPerPixel = if maxGrey < 256 then 1 else 2
   skipToNextBlock
-  let size = width*height*bytesPerPixel
-  bitmap  <- P.byteString $ size
-  let size64 = fromIntegral $ toInteger $ size
+  let size   = width*height*bytesPerPixel
+  let size64 = fromIntegral size
+  bitmap     <- P.byteString  size
   P.assert
     ("Bitmap too short. " ++
      show width ++ "x" ++ show height ++ "=" ++ show (height*width) ++
@@ -87,14 +77,14 @@ spanPlainPGMData s = loop ([], 0, s)
         Left _ -> (is, c, s)
 
 plainPGMData = do
-  s <- getState
-  let (d, c, t) = spanPlainPGMData $ string s
-  setState $ s { string = t, offset = offset s + c }
+  s <- P.getState
+  let (d, c, t) = spanPlainPGMData $ P.string s
+  P.setState $ s { P.string = t, P.offset = P.offset s + c }
   return $ reverse d
 
 plainPGMNat = do
-  takeWhileSpace
-  nat
+  P.takeWhileSpace
+  P.nat
 
 plainPGMDataSlow size = P.take size plainPGMNat
 
@@ -125,7 +115,7 @@ plainPGM     = plainPGMTemplate $ \_ -> plainPGMData
 plainPGMSlow = plainPGMTemplate plainPGMDataSlow
 
 pgmTemplate plainPGMImpl = do
-  header <- peek P.takeWhileNotSpace
+  header <- P.peek P.takeWhileNotSpace
   selectPGM header
   where
     selectPGM "P2" = plainPGMImpl
@@ -148,5 +138,5 @@ writeRawPGMIO :: FilePath -> ExceptT String IO Greymap -> ExceptT String IO ()
 writeRawPGMIO f g = g >>= (lift . writeRawPGM f)
 
 convertPlainToRawPGM i o = runExceptT $ do
-  (g, _) <- parseIO plainPGM $ L.readFile i
+  (g, _) <- P.parseIO plainPGM $ L.readFile i
   lift $ writeRawPGM o g
