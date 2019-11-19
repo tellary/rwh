@@ -2,30 +2,40 @@ module PGM (convertPlainToRawPGM, pgm,
             plainPGM, plainPGMSlow,
             rawPGM, writeRawPGM, writeRawPGMIO) where
 
+import           Control.Exception (bracket)
+import           Control.Monad.Trans.Class
+                 (lift)
 import           Control.Monad.Trans.Except
                  (runExceptT, ExceptT(..))
-import           Data.Bits (shift)
+import           Data.Array (elems, listArray, Array)
+import           Data.Bits  (shift)
 import qualified Data.ByteString.Lazy       as L
 import           Data.Word (Word8)
 import qualified Data.ByteString.Lazy.Char8 as L8
 import           Data.Char
                  (isDigit, isSpace)
-import           Control.Monad.Trans.Class
-                 (lift)
-import           NetpbmCommon (skipToNextBlock)
+import           NetpbmCommon
 import qualified Parser                     as P
-import           System.IO (appendFile)
+import           System.IO
+                 (openFile, hClose,
+                  hPutStr, IOMode(WriteMode))
+import           Text.Printf (printf)
 
-data Greymap = Greymap {
-  greyWidth  :: Int,
-  greyHeight :: Int,
-  greyMax    :: Int,
-  greyData   :: L.ByteString
-  }
+type Greymap = Image Pixel
 
-instance Show Greymap where
-  show (Greymap w h m _) =
-    "Greymap " ++ show w ++ "x" ++ show h ++ " " ++ show m
+greymapArray :: Int -> Int -> [Pixel] -> Either String (Array (Int, Int) Pixel)
+greymapArray w h d
+  | w*h /= l =
+    Left
+    $ printf "Data size doesn't match dimensions (%ix%i == %i) /= %i"
+      w h (w*h) l
+  | otherwise = Right $ listArray ((0,0), (w - 1, h - 1)) d
+  where l = length d
+
+greymap w h depth d = do
+  case greymapArray w h d of
+    Right a -> return $ Image depth a
+    Left  e -> fail e
 
 rawPGM = do
   header  <- P.takeWhileNotSpace
@@ -50,7 +60,7 @@ rawPGM = do
      " bytes expected while " ++
      (show $ L.length bitmap) ++ " is found") $
     L.length bitmap == size64
-  return $ Greymap width height maxGrey bitmap
+  greymap width height maxGrey $ L.unpack bitmap
 
 spanPlainPGMNat :: L.ByteString -> Either String (Int, Int, L.ByteString)
 spanPlainPGMNat s =
@@ -102,8 +112,7 @@ plainPGMTemplate bitmapF = do
     maxGrey < 65536
   skipToNextBlock
   bitmap <- bitmapF (width*height)
-  return $ Greymap width height maxGrey
-    $ L.pack $ i2w =<< bitmap
+  greymap width height maxGrey $ i2w =<< bitmap
 
 i2w :: Int -> [Word8]
 i2w i
@@ -124,15 +133,15 @@ pgmTemplate plainPGMImpl = do
 
 pgm = pgmTemplate plainPGM
 
-writeRawPGM f g = do
-  appendFile   f "P5\n"
-  appendFile   f $ show $ greyWidth g
-  appendFile   f " "
-  appendFile   f $ show $ greyHeight g
-  appendFile   f "\n"
-  appendFile   f $ show $ greyMax g
-  appendFile   f "\n"
-  L.appendFile f $ greyData g
+writeRawPGM fn g = bracket (openFile fn WriteMode) hClose $ \f -> do
+  hPutStr f "P5\n"
+  hPutStr f $ show $ imageWidth  g
+  hPutStr f " "
+  hPutStr f $ show $ imageHeight g
+  hPutStr f "\n"
+  hPutStr f $ show $ imageDepth  g
+  hPutStr f "\n"
+  L.hPut  f $ L.pack $ elems $ imageData g
 
 writeRawPGMIO :: FilePath -> ExceptT String IO Greymap -> ExceptT String IO ()
 writeRawPGMIO f g = g >>= (lift . writeRawPGM f)

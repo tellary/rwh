@@ -1,6 +1,26 @@
-module NetpbmCommon(skipToNextBlock) where
+module NetpbmCommon(imageHeight, imageWidth,
+                    skipToNextBlock,
+                    Image(..), Pixel) where
 
-import qualified Parser                     as P
+import           Data.Array  (bounds, Array)
+import           Data.Word   (Word8)
+import qualified Parser      as P
+import           Text.Printf (printf)
+
+type Pixel = Word8
+
+data Image a = Image {
+  imageDepth :: Int,
+  imageData  :: Array (Int, Int) a
+  }
+
+imageWidth  (Image _ a) = (fst $ snd $ bounds a) + 1
+imageHeight (Image _ a) = (snd $ snd $ bounds a) + 1
+
+instance Show (Image a) where
+  show i@(Image d _) = printf "Image %i %i %i" w h d
+    where w = imageWidth  i
+          h = imageHeight i
 
 skipComment = P.takeWhile ((/= '\n')) P.char
 

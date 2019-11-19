@@ -1,30 +1,18 @@
-module PPM where
+module PPM (newPPM, ppm, Pixel, Pixmap, RGB) where
 
 import           Data.Array
                  (Array, listArray)
 import qualified Data.ByteString.Lazy       as L
 import           Data.List.Split (chunksOf)
-import           Data.Word (Word8)
 import           NetpbmCommon
-                 (skipToNextBlock)
 import qualified Parser                     as P
 import           Text.Printf (printf)
 
-type Pixel = Word8
 type RGB = (Pixel, Pixel, Pixel)
+type Pixmap = Image RGB
 
-data Pixmap = Pixmap {
-  width  :: Int,
-  height :: Int,
-  depth  :: Int,
-  pixmap :: Array (Int, Int) RGB
-  }
-
-instance Show Pixmap where
-  show (Pixmap w h d _) = printf "Pixmap %i %i %i" w h d
-
-pixmapArray :: Int -> Int -> [Pixel] -> Either String (Array (Int, Int) RGB)
-pixmapArray w h d
+rgbmapArray :: Int -> Int -> [Pixel] -> Either String (Array (Int, Int) RGB)
+rgbmapArray w h d
   | 3*w*h /= l =
     Left
     $ printf "Data size doesn't match dimensions (3x(%ix%i) == %i) /= %i"
@@ -32,7 +20,12 @@ pixmapArray w h d
   | otherwise = Right $ listArray ((0,0), (w - 1, h - 1)) $ rgbs d
   where rgbs          = map rgb . chunksOf 3
         rgb [r, g, b] = (r, g, b)
+        rgb _         = error
+          $ "RGB data must be multiple of 3. " ++
+            "This error shouldn't be possible as per `rgbmapArray` validation."
         l             = length d
+
+newPPM w h depth d = Image depth <$> rgbmapArray w h d
 
 ppm = do
   header  <- P.takeWhileNotSpace
@@ -51,7 +44,7 @@ ppm = do
   skipToNextBlock
   let size = 3*width*height
   bitmap <- P.byteString size
-  case pixmapArray width height $ L.unpack bitmap of
-    Right a -> return $ Pixmap width height depth a
+  case newPPM width height depth $ L.unpack bitmap of
+    Right i -> return $ i
     Left  e -> fail e
 
