@@ -1,8 +1,14 @@
 {-# LANGUAGE FlexibleInstances #-}
-import EAN13
-import Control.Exception (assert)
-import Data.Array ((!))
-import Test.QuickCheck
+import           EAN13
+import           Control.Exception (assert)
+import           Control.Monad.Trans.Except (runExceptT)
+import           Data.Array ((!), listArray)
+import qualified Data.ByteString.Lazy as L
+import           Test.QuickCheck
+import qualified Parser as P
+import           NetpbmCommon
+import           PPM
+import           PPM2PGM
 
 rwhIsbn = [9,7,8,0,5,9,6,5,1,4,9,8,3]
 -- https://en.wikipedia.org/wiki/File:EAN13.svg
@@ -47,6 +53,22 @@ t1 = assert
      ((encodeDigits $ take 12 ean13_2) == ean13_2_parts)
      "encodeDigits succeed"
 
+whiteSqPPM = fmap fst $ P.parseIO ppm $ L.readFile "../netpbm/white_sq.ppm"
+whiteSqPGM = ppmToPGM <$> whiteSqPPM
+
+whiteSqThreshold = threshold 0.5 <$> imageData <$> whiteSqPGM
+
+expectedWhiteSqThreshold = listArray ((0,0), (3,3))
+  [One,  One,  One, One,
+   One, Zero, Zero, One,
+   One, Zero, Zero, One,
+   One,  One,  One, One]
+
+t2 = do
+  w <- whiteSqThreshold
+  return $ assert (expectedWhiteSqThreshold == w) "expectedWhiteSqThreshold"
+
 tests = do
   quickCheck prop_checkDigit
-  return t1
+  t2' <- runExceptT t2
+  return [return t1, t2']

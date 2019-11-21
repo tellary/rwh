@@ -1,6 +1,6 @@
 module EAN13 where
 
-import Data.Array ((!), elems, listArray)
+import Data.Array ((!), elems, listArray, Array, Ix)
 
 -- https://en.wikipedia.org/wiki/International_Article_Number#Calculation_of_checksum_digit
 checkDigit :: Integral a => [a] -> a
@@ -48,3 +48,16 @@ encodeLeft '0' = (leftEvenCodes !)
 encodeLeft '1' = (leftOddCodes  !)
 
 encodeRight d = rightCodes ! d
+
+data Bit = Zero | One deriving (Eq, Show)
+
+threshold :: (Ix k, Integral a) => Double -> Array k a -> Array k Bit
+threshold r a = binary <$> a
+  where binary m
+          --   0 pixel represents black
+          | fromIntegral m < pivot = One
+          -- 255 pixel represents white
+          | otherwise = Zero
+        pivot = r*(max - min) + min
+        max   = fromIntegral $ maximum a
+        min   = fromIntegral $ minimum a
