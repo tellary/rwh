@@ -1,6 +1,8 @@
 module EAN13 where
 
 import Data.Array ((!), elems, listArray, Array, Ix)
+import Data.List  (group, sortBy)
+import Data.Ord   (comparing)
 
 -- https://en.wikipedia.org/wiki/International_Article_Number#Calculation_of_checksum_digit
 checkDigit :: Integral a => [a] -> a
@@ -32,8 +34,8 @@ centerMarker = "01010"
 encodeEAN13 :: [Int] -> Maybe String
 encodeEAN13 is
   | length is /= 12 = Nothing
-  | any ((< 0)) is  = Nothing
-  | any ((> 9)) is  = Nothing
+  | any (< 0) is    = Nothing
+  | any (> 9) is    = Nothing
   | otherwise       = Just $ concat $ encodeDigits is
 
 encodeDigits :: [Int] -> [String]
@@ -61,3 +63,34 @@ threshold r a = binary <$> a
         pivot = r*(max - min) + min
         max   = fromIntegral $ maximum a
         min   = fromIntegral $ minimum a
+
+type Run  = Int
+type RunElems a = [(Run, a)]
+
+runElems :: Eq a => [a] -> RunElems a
+runElems = map runElem . group
+  where runElem gr = (length gr, head gr)
+
+runs :: Eq a => [a] -> [Run]
+runs = fmap fst . runElems
+
+scaledRuns :: (Eq a, Fractional b) => [a] -> [b]
+scaledRuns xs = map divide rs
+  where divide d = fromIntegral d / (fromIntegral $ sum rs)
+        rs = runs xs
+
+distanceSq a b = sum $ zipWith sqDelta a b
+  where sqDelta x y = (x - y)^2
+
+leftOddRuns, leftEvenRuns, rightRuns :: Fractional a => [[a]]
+leftOddRuns  = map scaledRuns $ elems leftOddCodes
+leftEvenRuns = map scaledRuns $ elems leftEvenCodes
+rightRuns    = map scaledRuns $ elems rightCodes
+
+bestDigits :: (Eq a, Ord r, Fractional r, Integral d) =>
+  [[r]] -> [a] -> [(r, d)]
+bestDigits digitRuns input =
+  sortBy (comparing fst)
+  $ zip digitScores digits
+  where digits      = [0..9]
+        digitScores = map (distanceSq $ scaledRuns input) digitRuns

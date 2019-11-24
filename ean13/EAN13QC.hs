@@ -1,4 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
+
+import           Data.Ratio ((%))
 import           EAN13
 import           Control.Exception (assert)
 import           Control.Monad.Trans.Except (runExceptT)
@@ -68,7 +70,21 @@ t2 = do
   w <- whiteSqThreshold
   return $ assert (expectedWhiteSqThreshold == w) "expectedWhiteSqThreshold"
 
+t3 = assert ((runs $ leftOddCodes!0) == [3,2,1,1])
+     "Expected leftOddCodes!0 runs"
+
+t4 = assert ((scaledRuns $ leftOddCodes!0) == [3 % 7,2 % 7,1 % 7,1 % 7])
+     "Expected leftOddCodes!0 normalizedRuns"
+
+t5 = assert ((head $ bestDigits rightRuns $ rightCodes!2) == (0.0, 2))
+     "Second right code expected to be the best among right runs"
+
 tests = do
   quickCheck prop_checkDigit
   t2' <- runExceptT t2
-  return [return t1, t2']
+  return [
+    return t1,
+    t2',
+    return t3,
+    return t4,
+    return t5]
