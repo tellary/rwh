@@ -54,6 +54,9 @@ ean13_2_parts = [
 t1 = assert
      ((encodeDigits $ take 12 ean13_2) == ean13_2_parts)
      "encodeDigits succeed"
+t6 = assert
+     ((encodeEAN13 $ take 12 ean13_2) == (Just $ concat ean13_2_parts))
+     "encodeEAN13 succeed"
 
 whiteSqPPM = fmap fst $ P.parseIO ppm $ L.readFile "../netpbm/white_sq.ppm"
 whiteSqPGM = ppmToPGM <$> whiteSqPPM
@@ -84,6 +87,7 @@ tests = do
   t2' <- runExceptT t2
   return [
     return t1,
+    return t6,
     t2',
     return t3,
     return t4,

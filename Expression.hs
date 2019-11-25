@@ -33,3 +33,4 @@ instance Read Expression where
 -- result $ read "(1 + 2) + 4"
 -- result $ read "1 + (2 + 4)"
 -- result $ read "(1 + 2 + 4)"
+-- readPrec_to_S readSum 0 "(1 + 2) + 3 + 4"
