@@ -76,11 +76,21 @@ t2 = do
 t3 = assert ((runs $ leftOddCodes!0) == [3,2,1,1])
      "Expected leftOddCodes!0 runs"
 
-t4 = assert ((scaledRuns $ leftOddCodes!0) == [3 % 7,2 % 7,1 % 7,1 % 7])
+t4 = assert ((scaledRuns1 $ leftOddCodes!0) == [3 % 7,2 % 7,1 % 7,1 % 7])
      "Expected leftOddCodes!0 normalizedRuns"
 
-t5 = assert ((head $ bestDigits rightRuns $ rightCodes!2) == (0.0, 2))
+t5 = assert
+     ((head $ bestDigits rightSRs $ scaledRuns1 $ rightCodes!2) == (0.0, 2))
      "Second right code expected to be the best among right runs"
+
+t7 = assert
+     ((fmap head $ candidateDigits 1 $ concat ean13_2_parts) ==
+      ([Odd  (0.0, 0), Even (0.0, 0), Odd  (0.0, 3),
+        Odd  (0.0, 9), Even (0.0, 9), Even (0.0, 4),
+        None (0.0, 1), None (0.0, 5), None (0.0, 5),
+        None (0.0, 4), None (0.0, 8), None (0.0, 6)]))
+     "Best candidate digits of a correct EAN13 encoding are expected " ++
+     "and have 0.0 error"
 
 tests = do
   quickCheck prop_checkDigit
@@ -91,4 +101,5 @@ tests = do
     t2',
     return t3,
     return t4,
-    return t5]
+    return t5,
+    return t7]

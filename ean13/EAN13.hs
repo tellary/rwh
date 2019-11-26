@@ -1,7 +1,10 @@
+{-# LANGUAGE DeriveFunctor #-}
+
 module EAN13 where
 
 import Data.Array ((!), elems, listArray, Array, Ix)
 import Data.List  (group, sortBy)
+import Data.List.Split (chunksOf)
 import Data.Ord   (comparing)
 
 -- https://en.wikipedia.org/wiki/International_Article_Number#Calculation_of_checksum_digit
@@ -74,23 +77,47 @@ runElems = map runElem . group
 runs :: Eq a => [a] -> [Run]
 runs = fmap fst . runElems
 
-scaledRuns :: (Eq a, Fractional b) => [a] -> [b]
-scaledRuns xs = map divide rs
+scaledRuns :: Fractional b => [Run] -> [b]
+scaledRuns rs = map divide rs
   where divide d = fromIntegral d / (fromIntegral $ sum rs)
-        rs = runs xs
+
+scaledRuns1 :: (Eq a, Fractional b) => [a] -> [b]
+scaledRuns1 = scaledRuns . runs
 
 distanceSq a b = sum $ zipWith sqDelta a b
   where sqDelta x y = (x - y)^2
 
-leftOddRuns, leftEvenRuns, rightRuns :: Fractional a => [[a]]
-leftOddRuns  = map scaledRuns $ elems leftOddCodes
-leftEvenRuns = map scaledRuns $ elems leftEvenCodes
-rightRuns    = map scaledRuns $ elems rightCodes
+leftOddSRs, leftEvenSRs, rightSRs :: Fractional a => [[a]]
+leftOddSRs  = map scaledRuns1 $ elems leftOddCodes
+leftEvenSRs = map scaledRuns1 $ elems leftEvenCodes
+rightSRs    = map scaledRuns1 $ elems rightCodes
 
-bestDigits :: (Eq a, Ord r, Fractional r, Integral d) =>
-  [[r]] -> [a] -> [(r, d)]
-bestDigits digitRuns input =
+bestDigits :: (Fractional r, Ord r, Integral d) =>
+  [[r]] -> [r] -> [(r, d)]
+bestDigits digitSRs input =
   sortBy (comparing fst)
   $ zip digitScores digits
   where digits      = [0..9]
-        digitScores = map (distanceSq $ scaledRuns input) digitRuns
+        digitScores = map (distanceSq $ input) digitSRs
+
+data Parity a = Odd a | Even a | None a
+                deriving (Show, Eq, Functor)
+
+fromParity (Odd  a) = a
+fromParity (Even a) = a
+fromParity (None a) = a
+
+bestLeft, bestRight :: (Fractional r, Ord r, Integral d) =>
+  [r] -> [Parity (r, d)]
+bestLeft  rs = sortBy (comparing (fst . fromParity)) $ odd ++ even
+  where odd  = Odd  <$> bestDigits leftOddSRs  rs
+        even = Even <$> bestDigits leftEvenSRs rs
+bestRight rs = None <$> bestDigits rightSRs    rs
+
+candidateDigits :: (Eq a, Fractional r, Ord r, Integral d) =>
+  Int -> [a] -> [[Parity (r, d)]]
+candidateDigits n xs =
+  (take n . bestLeft <$> left) ++ (take n . bestRight <$> right)
+  where left  = fmap scaledRuns $ take 6 $ chunksOf 4 $ drop 3  $ rs
+        right = fmap scaledRuns $ take 6 $ chunksOf 4 $ drop 32 $ rs
+        rs = runs xs
