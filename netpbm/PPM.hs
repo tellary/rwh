@@ -30,7 +30,7 @@ newPPM w h depth d = Image depth <$> rgbmapArray w h d
 ppm = do
   header  <- P.takeWhileNotSpace
   P.assert
-    ("Invalid raw header expected P6, but found " ++ header) $
+    ("Invalid raw header. Expected P6, but found " ++ header) $
     header == "P6"
   skipToNextBlock
   width   <- P.nat

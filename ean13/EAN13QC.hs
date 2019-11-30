@@ -92,6 +92,38 @@ t7 = assert
      "Best candidate digits of a correct EAN13 encoding are expected " ++
      "and have 0.0 error"
 
+seqDigits = listArray (0,3) [
+  None (2 % 49,8), None (0 % 1,8), Odd (2 % 49,2), Even (0 % 1,0)]
+
+seq1 = updateSequence emptySequence $ seqDigits!0
+seq2 = updateSequence seq1 $ seqDigits!1
+seq3 = updateSequence seq2 $ seqDigits!2
+seq4 = updateSequence seq3 $ seqDigits!3
+
+t8 = assert (expectedSeq4CheckDigit == actualSeq4CheckDigit)
+     "expectedSeq4CheckDigit"
+  where expectedSeq4CheckDigit =
+          checkDigit $ fromParity <$> sequenceDigits seq4
+        actualSeq4CheckDigit   = sequenceCheckDigit seq4
+
+expectedSeq4Error = sum . fmap fst . fmap fromParity $ seqDigits
+t9 = assert (expectedSeq4Error == actualSeq4Error)
+     "expectedSeq4Error"
+  where actualSeq4Error   = sequenceError seq4
+
+t10 = assert
+      ((checkDigitRecurrent 8 (length [1,3]) $ checkDigit [1,3]) ==
+       checkDigit [8,1,3])
+      "checkDigitRecurrent 8 (length [1,3]) 0"
+
+t11 = assert
+      ((checkDigitRecurrent 4 (length [8,1,3]) $ checkDigit [8,1,3]) ==
+       checkDigit [4,8,1,3])
+      "checkDigitRecurrent 4 (length [8,1,3])"
+
+ean13_2_xs = concat ean13_2_parts
+ean13_2_ds = candidateDigits 3 ean13_2_xs :: [[Parity (Rational, Int)]]
+
 tests = do
   quickCheck prop_checkDigit
   t2' <- runExceptT t2
@@ -102,4 +134,8 @@ tests = do
     return t3,
     return t4,
     return t5,
-    return t7]
+    return t7,
+    return t8,
+    return t9,
+    return t10,
+    return t11]

@@ -2,17 +2,31 @@
 
 module EAN13 where
 
-import Data.Array ((!), elems, listArray, Array, Ix)
-import Data.List  (group, sortBy)
-import Data.List.Split (chunksOf)
-import Data.Ord   (comparing)
+import           Data.Array      ((!), elems, listArray, Array, Ix)
+import           Data.List       (group, sortBy)
+import           Data.List.Split (chunksOf)
+import qualified Data.Map        as M
+import           Data.Ord        (comparing)
+
+inv10 n = tenToZero $ 10 - n `mod` 10
+  where tenToZero 10 = 0
+        tenToZero d  = d
 
 -- https://en.wikipedia.org/wiki/International_Article_Number#Calculation_of_checksum_digit
 checkDigit :: Integral a => [a] -> a
-checkDigit digits = tenToZero $ 10 - sum products `mod` 10
+checkDigit digits = inv10 $ sum products
   where products = zipWith ($) (cycle [(*3), (*1)]) $ reverse digits
-        tenToZero 10 = 0
-        tenToZero d  = d
+
+-- A more mathematical version of checkDigit that allows to reason
+-- about its recurrence better.
+checkDigit1 digits =
+  inv10 $ sum $ [3^((n - i) `mod` 2)*d | (i, d) <- zip [0 .. n - 1] digits]
+  where n = length digits
+
+-- Recurent formula for the check digit.
+--
+-- See EAN13QC(t10,t11) for test
+checkDigitRecurrent d n c = inv10 $ 3^((n + 1) `mod` 2)*d + (inv10 c)
 
 array xs = listArray (0, l - 1) xs
   where l = length xs
@@ -121,3 +135,54 @@ candidateDigits n xs =
   where left  = fmap scaledRuns $ take 6 $ chunksOf 4 $ drop 3  $ rs
         right = fmap scaledRuns $ take 6 $ chunksOf 4 $ drop 32 $ rs
         rs = runs xs
+
+data Sequence e d = Sequence {
+  sequenceCheckDigit :: d,
+  sequenceError      :: e,
+  sequenceDigits     :: [Parity d]
+  } deriving Show
+
+emptySequence :: (Integral d, Fractional e) => Sequence e d
+emptySequence = Sequence 0 0 []
+
+updateSequence :: (Integral d, Fractional e) =>
+  Sequence e d -> Parity (e, d) -> Sequence e d
+updateSequence oldSeq candidateDigit =
+  Sequence newCheckDigit newError $ newParityDigit:sequenceDigits oldSeq
+  where newCheckDigit  = checkDigitRecurrent digit oldSeqLength oldCheckDigit
+        oldCheckDigit  = sequenceCheckDigit oldSeq
+        oldSeqLength   = length . sequenceDigits $ oldSeq
+        (error, digit) = fromParity candidateDigit
+        newError       = error + sequenceError oldSeq
+        newParityDigit = snd <$> candidateDigit
+
+type SequenceMap e d = M.Map d (Sequence e d)
+
+emptySequenceMap :: (Integral d, Fractional e) => SequenceMap e d
+emptySequenceMap = M.singleton 0 emptySequence
+
+minErrorSequence s1 s2
+  | sequenceError s1 < sequenceError s2 = s1
+  | otherwise                           = s2
+
+withMinErrorSequence _ s1 s2 = minErrorSequence s1 s2
+
+consumeCandidate :: (Integral d, Ord e, Fractional e) =>
+  SequenceMap e d -> SequenceMap e d -> Parity (e, d) -> SequenceMap e d
+consumeCandidate oldMap newMap candidateDigit =
+  M.foldrWithKey handleSeq newMap oldMap
+  where handleSeq _ oldSeq newMap' =
+          M.insertWithKey withMinErrorSequence newCheckDigit newSeq newMap'
+          where newSeq        = updateSequence oldSeq candidateDigit
+                newCheckDigit = sequenceCheckDigit newSeq
+
+consumeCandidates :: (Integral d, Ord e, Fractional e) =>
+  SequenceMap e d -> SequenceMap e d -> [Parity (e, d)] -> SequenceMap e d
+consumeCandidates oldMap newMap candidateDigits =
+  foldr (flip $ consumeCandidate oldMap) newMap candidateDigits
+
+consumeDigits :: (Integral d, Ord e, Fractional e) =>
+  [[Parity (e, d)]] -> SequenceMap e d
+consumeDigits digits =
+  foldr step emptySequenceMap digits
+  where step candidates map = consumeCandidates map M.empty candidates
