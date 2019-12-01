@@ -6,11 +6,14 @@ import           Control.Exception (assert)
 import           Control.Monad.Trans.Except (runExceptT)
 import           Data.Array ((!), listArray)
 import qualified Data.ByteString.Lazy as L
-import           Test.QuickCheck
-import qualified Parser as P
+import           Data.List (sortBy)
+import qualified Data.Map as M
 import           NetpbmCommon
+import           Data.Ord (comparing)
+import qualified Parser as P
 import           PPM
 import           PPM2PGM
+import           Test.QuickCheck
 
 rwhIsbn = [9,7,8,0,5,9,6,5,1,4,9,8,3]
 -- https://en.wikipedia.org/wiki/File:EAN13.svg
@@ -83,12 +86,15 @@ t5 = assert
      ((head $ bestDigits rightSRs $ scaledRuns1 $ rightCodes!2) == (0.0, 2))
      "Second right code expected to be the best among right runs"
 
+ean13_2_bestDigits =
+  [Odd  (0.0, 0), Even (0.0, 0), Odd  (0.0, 3),
+   Odd  (0.0, 9), Even (0.0, 9), Even (0.0, 4),
+   None (0.0, 1), None (0.0, 5), None (0.0, 5),
+   None (0.0, 4), None (0.0, 8), None (0.0, 6)]
+
 t7 = assert
      ((fmap head $ candidateDigits 1 $ concat ean13_2_parts) ==
-      ([Odd  (0.0, 0), Even (0.0, 0), Odd  (0.0, 3),
-        Odd  (0.0, 9), Even (0.0, 9), Even (0.0, 4),
-        None (0.0, 1), None (0.0, 5), None (0.0, 5),
-        None (0.0, 4), None (0.0, 8), None (0.0, 6)]))
+      ean13_2_bestDigits)
      "Best candidate digits of a correct EAN13 encoding are expected " ++
      "and have 0.0 error"
 
@@ -124,6 +130,27 @@ t11 = assert
 ean13_2_xs = concat ean13_2_parts
 ean13_2_ds = candidateDigits 3 ean13_2_xs :: [[Parity (Rational, Int)]]
 
+ean13_2_seqs = sortBy (comparing sequenceError) . fmap snd . M.assocs
+  $ consumeDigits ean13_2_ds
+
+t12 = assert
+      ((sequenceDigits $ head ean13_2_seqs) ==
+       (fmap snd <$> ean13_2_bestDigits))
+      "`ean13_2` best sequence is `ean_13_2` itself"
+
+ean13_2_with_error_xs =
+  "101000110101000111011111010001011001011100111010101011001101001110100111010111001001000101000101"
+ean13_2_with_error_ds =
+  candidateDigits 3 ean13_2_with_error_xs :: [[Parity (Rational, Int)]]
+ean13_2_with_error_seqs =
+  sortBy (comparing sequenceError) . fmap snd . M.assocs
+  $ consumeDigits ean13_2_with_error_ds
+t13 = assert
+      ((sequenceDigits $ head ean13_2_with_error_seqs) ==
+       (fmap snd <$> ean13_2_bestDigits))
+      "`ean_13_2_with_error` best sequence is still `ean_13_2`"
+
+-- fmap (unlines . fmap show) tests >>= putStr
 tests = do
   quickCheck prop_checkDigit
   t2' <- runExceptT t2
@@ -138,4 +165,6 @@ tests = do
     return t8,
     return t9,
     return t10,
-    return t11]
+    return t11,
+    return t12,
+    return t13]
