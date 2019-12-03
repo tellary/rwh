@@ -3,7 +3,7 @@
 module EAN13 where
 
 import           Data.Array      ((!), elems, listArray, Array, Ix)
-import           Data.List       (group, sortBy)
+import           Data.List       (elemIndex, group, sortBy)
 import           Data.List.Split (chunksOf)
 import qualified Data.Map        as M
 import           Data.Ord        (comparing)
@@ -121,15 +121,22 @@ fromParity (Odd  a) = a
 fromParity (Even a) = a
 fromParity (None a) = a
 
+parityToChar (Odd  _) = '1'
+parityToChar (Even _) = '0'
+
+type CandidateDigit r d = Parity (r, d)
+type CandidatesForDigit r d = [CandidateDigit r d]
+type CandidateDigits r d = [CandidatesForDigit r d]
+
 bestLeft, bestRight :: (Fractional r, Ord r, Integral d) =>
-  [r] -> [Parity (r, d)]
+  [r] -> CandidatesForDigit r d
 bestLeft  rs = sortBy (comparing (fst . fromParity)) $ odd ++ even
   where odd  = Odd  <$> bestDigits leftOddSRs  rs
         even = Even <$> bestDigits leftEvenSRs rs
 bestRight rs = None <$> bestDigits rightSRs    rs
 
 candidateDigits :: (Eq a, Fractional r, Ord r, Integral d) =>
-  Int -> [a] -> [[Parity (r, d)]]
+  Int -> [a] -> CandidateDigits r d
 candidateDigits n xs =
   (take n . bestLeft <$> left) ++ (take n . bestRight <$> right)
   where left  = fmap scaledRuns $ take 6 $ chunksOf 4 $ drop 3  $ rs
@@ -146,7 +153,7 @@ emptySequence :: (Integral d, Fractional e) => Sequence e d
 emptySequence = Sequence 0 0 []
 
 updateSequence :: (Integral d, Fractional e) =>
-  Sequence e d -> Parity (e, d) -> Sequence e d
+  Sequence e d -> CandidateDigit e d -> Sequence e d
 updateSequence oldSeq candidateDigit =
   Sequence newCheckDigit newError $ newParityDigit:sequenceDigits oldSeq
   where newCheckDigit  = checkDigitRecurrent digit oldSeqLength oldCheckDigit
@@ -168,7 +175,7 @@ minErrorSequence s1 s2
 withMinErrorSequence _ s1 s2 = minErrorSequence s1 s2
 
 consumeCandidate :: (Integral d, Ord e, Fractional e) =>
-  SequenceMap e d -> SequenceMap e d -> Parity (e, d) -> SequenceMap e d
+  SequenceMap e d -> SequenceMap e d -> CandidateDigit e d -> SequenceMap e d
 consumeCandidate oldMap newMap candidateDigit =
   M.foldrWithKey handleSeq newMap oldMap
   where handleSeq _ oldSeq newMap' =
@@ -176,13 +183,29 @@ consumeCandidate oldMap newMap candidateDigit =
           where newSeq        = updateSequence oldSeq candidateDigit
                 newCheckDigit = sequenceCheckDigit newSeq
 
-consumeCandidates :: (Integral d, Ord e, Fractional e) =>
-  SequenceMap e d -> SequenceMap e d -> [Parity (e, d)] -> SequenceMap e d
-consumeCandidates oldMap newMap candidateDigits =
+consumeCandidatesForDigit :: (Integral d, Ord e, Fractional e)
+  => SequenceMap e d
+  -> SequenceMap e d
+  -> CandidatesForDigit e d
+  -> SequenceMap e d
+consumeCandidatesForDigit oldMap newMap candidateDigits =
   foldr (flip $ consumeCandidate oldMap) newMap candidateDigits
 
-consumeDigits :: (Integral d, Ord e, Fractional e) =>
-  [[Parity (e, d)]] -> SequenceMap e d
-consumeDigits digits =
-  foldr step emptySequenceMap digits
-  where step candidates map = consumeCandidates map M.empty candidates
+consumeCandidates :: (Integral d, Ord e, Fractional e) =>
+  CandidateDigits e d -> SequenceMap e d
+consumeCandidates candidates =
+  foldr step emptySequenceMap candidates
+  where step candidatesForDigit map =
+          consumeCandidatesForDigit map M.empty candidatesForDigit
+
+digitSequencesByError :: (Integral d, Ord e, Fractional e) =>
+  SequenceMap e d -> [Sequence e d]
+digitSequencesByError = sortBy (comparing sequenceError) . fmap snd . M.assocs
+
+addFirstDigitToSequence :: (Integral d, Ord e, Fractional e) =>
+  Sequence e d -> Maybe (Sequence e d)
+addFirstDigitToSequence seq =
+  updateSequence seq . None . ((,) 0) . fromIntegral <$> idxMaybe
+  where parityStr =
+          fmap parityToChar . take 6 . sequenceDigits $ seq
+        idxMaybe  = elemIndex parityStr $ elems parity

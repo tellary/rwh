@@ -6,10 +6,7 @@ import           Control.Exception (assert)
 import           Control.Monad.Trans.Except (runExceptT)
 import           Data.Array ((!), listArray)
 import qualified Data.ByteString.Lazy as L
-import           Data.List (sortBy)
-import qualified Data.Map as M
 import           NetpbmCommon
-import           Data.Ord (comparing)
 import qualified Parser as P
 import           PPM
 import           PPM2PGM
@@ -130,8 +127,7 @@ t11 = assert
 ean13_2_xs = concat ean13_2_parts
 ean13_2_ds = candidateDigits 3 ean13_2_xs :: [[Parity (Rational, Int)]]
 
-ean13_2_seqs = sortBy (comparing sequenceError) . fmap snd . M.assocs
-  $ consumeDigits ean13_2_ds
+ean13_2_seqs = digitSequencesByError $ consumeCandidates ean13_2_ds
 
 t12 = assert
       ((sequenceDigits $ head ean13_2_seqs) ==
@@ -143,14 +139,29 @@ ean13_2_with_error_xs =
 ean13_2_with_error_ds =
   candidateDigits 3 ean13_2_with_error_xs :: [[Parity (Rational, Int)]]
 ean13_2_with_error_seqs =
-  sortBy (comparing sequenceError) . fmap snd . M.assocs
-  $ consumeDigits ean13_2_with_error_ds
+  digitSequencesByError $ consumeCandidates ean13_2_with_error_ds
 t13 = assert
       ((sequenceDigits $ head ean13_2_with_error_seqs) ==
        (fmap snd <$> ean13_2_bestDigits))
       "`ean_13_2_with_error` best sequence is still `ean_13_2`"
 
--- fmap (unlines . fmap show) tests >>= putStr
+-- `ean13_2`'s 11 candidate digits, w/o the check digit
+ean13_2_ds11 = take 11 ean13_2_ds :: [[Parity (Rational, Int)]]
+ean13_2_best11 = head . digitSequencesByError $ consumeCandidates ean13_2_ds11
+
+t14 = assert
+      ((fmap head
+        . fmap sequenceDigits
+        . addFirstDigitToSequence
+        $ ean13_2_best11) ==
+        (Just $ None 4))
+      "First digit in `ean13_2` \"reconstructed\" sequence is as expected"
+t15 = assert
+      ((fmap sequenceCheckDigit . addFirstDigitToSequence $ ean13_2_best11) ==
+        (Just $ 6))
+      "Check digit in `ean13_2` \"reconstructed\" sequence is as expected"
+
+tests :: IO [Either String String]
 tests = do
   quickCheck prop_checkDigit
   t2' <- runExceptT t2
@@ -167,4 +178,11 @@ tests = do
     return t10,
     return t11,
     return t12,
-    return t13]
+    return t13,
+    return t14,
+    return t15]
+
+printTests = do
+  tests' <- tests
+  let results = map (either (const "error") id) tests'
+  putStr . unlines $ results
