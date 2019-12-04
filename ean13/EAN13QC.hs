@@ -125,7 +125,7 @@ t11 = assert
       "checkDigitRecurrent 4 (length [8,1,3])"
 
 ean13_2_xs = concat ean13_2_parts
-ean13_2_ds = candidateDigits 3 ean13_2_xs :: [[Parity (Rational, Int)]]
+ean13_2_ds = candidateDigits 3 ean13_2_xs :: CandidateDigits Rational Int
 
 ean13_2_seqs = digitSequencesByError $ consumeCandidates ean13_2_ds
 
@@ -137,17 +137,22 @@ t12 = assert
 ean13_2_with_error_xs =
   "101000110101000111011111010001011001011100111010101011001101001110100111010111001001000101000101"
 ean13_2_with_error_ds =
-  candidateDigits 3 ean13_2_with_error_xs :: [[Parity (Rational, Int)]]
+  candidateDigits 3 ean13_2_with_error_xs :: CandidateDigits Rational Int
 ean13_2_with_error_seqs =
   digitSequencesByError $ consumeCandidates ean13_2_with_error_ds
 t13 = assert
       ((sequenceDigits $ head ean13_2_with_error_seqs) ==
        (fmap snd <$> ean13_2_bestDigits))
-      "`ean_13_2_with_error` best sequence is still `ean_13_2`"
+      "`ean_13_2_with_error_xs` best sequence is still `ean_13_2`"
 
 -- `ean13_2`'s 11 candidate digits, w/o the check digit
-ean13_2_ds11 = take 11 ean13_2_ds :: [[Parity (Rational, Int)]]
-ean13_2_best11 = head . digitSequencesByError $ consumeCandidates ean13_2_ds11
+(ean13_2_ds11, ean13_2_checks') = splitAt 11 ean13_2_ds
+  :: (CandidateDigits Rational Int, CandidateDigits Rational Int)
+ean13_2_checks = head ean13_2_checks'
+ean13_2_best11 = head . digitSequencesByError $ ean13_2_map
+ean13_2_map    = consumeCandidates ean13_2_ds11
+ean13_2_map1   = consumeFirstDigit 3 ean13_2_map
+ean13_2_map2   = consumeCandidatesForCheckDigit ean13_2_checks ean13_2_map1
 
 t14 = assert
       ((fmap head
@@ -160,6 +165,10 @@ t15 = assert
       ((fmap sequenceCheckDigit . addFirstDigitToSequence $ ean13_2_best11) ==
         (Just $ 6))
       "Check digit in `ean13_2` \"reconstructed\" sequence is as expected"
+
+t16 = assert
+      ((head . solve 1000 $ ean13_2_with_error_xs) == ean13_2)
+      "Best solution for `ean13_2_with_error_xs` is `ean13_2"
 
 tests :: IO [Either String String]
 tests = do
@@ -180,7 +189,8 @@ tests = do
     return t12,
     return t13,
     return t14,
-    return t15]
+    return t15,
+    return t16]
 
 printTests = do
   tests' <- tests

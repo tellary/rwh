@@ -3,7 +3,7 @@
 module EAN13 where
 
 import           Data.Array      ((!), elems, listArray, Array, Ix)
-import           Data.List       (elemIndex, group, sortBy)
+import           Data.List       (find, elemIndex, group, sortBy)
 import           Data.List.Split (chunksOf)
 import qualified Data.Map        as M
 import           Data.Ord        (comparing)
@@ -101,10 +101,11 @@ scaledRuns1 = scaledRuns . runs
 distanceSq a b = sum $ zipWith sqDelta a b
   where sqDelta x y = (x - y)^2
 
-leftOddSRs, leftEvenSRs, rightSRs :: Fractional a => [[a]]
+leftOddSRs, leftEvenSRs, rightSRs, paritySRs :: Fractional a => [[a]]
 leftOddSRs  = map scaledRuns1 $ elems leftOddCodes
 leftEvenSRs = map scaledRuns1 $ elems leftEvenCodes
 rightSRs    = map scaledRuns1 $ elems rightCodes
+paritySRs   = map scaledRuns1 $ elems parity
 
 bestDigits :: (Fractional r, Ord r, Integral d) =>
   [[r]] -> [r] -> [(r, d)]
@@ -128,12 +129,14 @@ type CandidateDigit r d = Parity (r, d)
 type CandidatesForDigit r d = [CandidateDigit r d]
 type CandidateDigits r d = [CandidatesForDigit r d]
 
-bestLeft, bestRight :: (Fractional r, Ord r, Integral d) =>
+bestLeft, bestRight, bestParity :: (Fractional r, Ord r, Integral d) =>
   [r] -> CandidatesForDigit r d
-bestLeft  rs = sortBy (comparing (fst . fromParity)) $ odd ++ even
-  where odd  = Odd  <$> bestDigits leftOddSRs  rs
-        even = Even <$> bestDigits leftEvenSRs rs
-bestRight rs = None <$> bestDigits rightSRs    rs
+bestLeft   rs = sortBy (comparing (fst . fromParity)) $ odd ++ even
+  where
+    odd  = Odd  <$> bestDigits leftOddSRs  rs
+    even = Even <$> bestDigits leftEvenSRs rs
+bestRight  rs = None <$> bestDigits rightSRs  rs
+bestParity rs = None <$> bestDigits paritySRs rs
 
 candidateDigits :: (Eq a, Fractional r, Ord r, Integral d) =>
   Int -> [a] -> CandidateDigits r d
@@ -172,35 +175,48 @@ minErrorSequence s1 s2
   | sequenceError s1 < sequenceError s2 = s1
   | otherwise                           = s2
 
-withMinErrorSequence _ s1 s2 = minErrorSequence s1 s2
-
 consumeCandidate :: (Integral d, Ord e, Fractional e) =>
-  SequenceMap e d -> SequenceMap e d -> CandidateDigit e d -> SequenceMap e d
-consumeCandidate oldMap newMap candidateDigit =
+  SequenceMap e d -> CandidateDigit e d -> SequenceMap e d -> SequenceMap e d
+consumeCandidate oldMap candidateDigit newMap =
   M.foldrWithKey handleSeq newMap oldMap
   where handleSeq _ oldSeq newMap' =
-          M.insertWithKey withMinErrorSequence newCheckDigit newSeq newMap'
+          M.insertWith minErrorSequence newCheckDigit newSeq newMap'
           where newSeq        = updateSequence oldSeq candidateDigit
                 newCheckDigit = sequenceCheckDigit newSeq
 
 consumeCandidatesForDigit :: (Integral d, Ord e, Fractional e)
-  => SequenceMap e d
-  -> SequenceMap e d
+  => SequenceMap        e d
   -> CandidatesForDigit e d
-  -> SequenceMap e d
-consumeCandidatesForDigit oldMap newMap candidateDigits =
-  foldr (flip $ consumeCandidate oldMap) newMap candidateDigits
+  -> SequenceMap        e d
+  -> SequenceMap        e d
+consumeCandidatesForDigit oldMap candidatesForDigits newMap =
+  foldr (consumeCandidate oldMap) newMap candidatesForDigits
 
 consumeCandidates :: (Integral d, Ord e, Fractional e) =>
   CandidateDigits e d -> SequenceMap e d
 consumeCandidates candidates =
-  foldr step emptySequenceMap candidates
-  where step candidatesForDigit map =
-          consumeCandidatesForDigit map M.empty candidatesForDigit
+  foldr handleDigit emptySequenceMap candidates
+  where handleDigit candidatesForDigit oldMap =
+          consumeCandidatesForDigit oldMap candidatesForDigit M.empty
 
 digitSequencesByError :: (Integral d, Ord e, Fractional e) =>
   SequenceMap e d -> [Sequence e d]
 digitSequencesByError = sortBy (comparing sequenceError) . fmap snd . M.assocs
+
+solutionsByError :: (Integral d, Ord e, Fractional e) =>
+  [Sequence e d] -> [[d]]
+solutionsByError seqs =
+  fmap fromParity <$> sequenceDigits <$> seqs
+
+solutionsByError1 seqs = handleSeq <$> seqs
+  where handleSeq seq =
+          (sequenceError seq, fmap fromParity . sequenceDigits $ seq)
+
+candidatesForFirstDigit :: (Integral d, Ord e, Fractional e) =>
+  Int -> Sequence e d -> CandidatesForDigit e d
+candidatesForFirstDigit n =
+  take n . bestParity . scaledRuns1
+  . fmap parityToChar . take 6 . sequenceDigits
 
 addFirstDigitToSequence :: (Integral d, Ord e, Fractional e) =>
   Sequence e d -> Maybe (Sequence e d)
@@ -209,3 +225,51 @@ addFirstDigitToSequence seq =
   where parityStr =
           fmap parityToChar . take 6 . sequenceDigits $ seq
         idxMaybe  = elemIndex parityStr $ elems parity
+
+consumeFirstDigit :: (Integral d, Ord e, Fractional e) =>
+  Int -> SequenceMap e d -> SequenceMap e d
+consumeFirstDigit n map =
+  foldr handleSeq M.empty map
+  where handleSeq seq newMap =
+          consumeCandidatesForDigit map candidates newMap
+          where candidates = candidatesForFirstDigit n seq
+
+appendCandidateCheckDigit :: (Integral d, Ord e, Fractional e) =>
+  Sequence e d -> CandidateDigit e d -> Sequence e d
+appendCandidateCheckDigit seq checkDigit =
+  Sequence
+  (sequenceCheckDigit seq)
+  (sequenceError      seq +  fst (fromParity checkDigit))
+  (sequenceDigits     seq ++ [snd <$> checkDigit])
+
+appendCandidatesForCheckDigit :: (Integral d, Ord e, Fractional e) =>
+  Sequence e d -> CandidatesForDigit e d -> [Sequence e d]
+appendCandidatesForCheckDigit seq =
+  fmap $ appendCandidateCheckDigit seq
+
+consumeCandidatesForCheckDigit :: (Integral d, Ord e, Fractional e) =>
+  CandidatesForDigit e d -> SequenceMap e d -> SequenceMap e d
+consumeCandidatesForCheckDigit candidates map =
+  M.foldrWithKey step M.empty map
+  where step checkDigit seq newMap =
+          case find (checkDigitEq checkDigit) candidates of
+            Just candidate ->
+              M.insert
+              checkDigit
+              (appendCandidateCheckDigit seq candidate)
+              newMap
+            Nothing        -> newMap
+        checkDigitEq digit = (== digit) . snd . fromParity
+
+solve0 :: (Eq a, Integral d, Ord e, Fractional e) =>
+  Int -> [a] -> [Sequence e d]
+solve0 n xs = digitSequencesByError m2
+  where ds                    = candidateDigits n xs
+        (candidates, checks') = splitAt 11 ds
+        checks                = head checks'
+        m                     = consumeCandidates candidates
+        m1                    = consumeFirstDigit n m
+        m2                    = consumeCandidatesForCheckDigit checks m1
+
+solve  n = solutionsByError  . solve0 n
+solve1 n = solutionsByError1 . solve0 n
