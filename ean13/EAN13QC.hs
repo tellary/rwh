@@ -74,14 +74,14 @@ t2 = do
   return $ assert (expectedWhiteRectThreshold == w) "expectedWhiteRectThreshold"
 
 t17 = do
-  r0 <- elems <$> getRow 0.5 0 <$> whiteRectPPM
+  r0 <- elems <$> getRow 0.5 0 <$> whiteRectPGM
   return
     $ assert
       (r0 == (take 5 $ elems expectedWhiteRectThreshold))
       "Expected whiteRectPPM row 0"
 
 t18 = do
-  r0 <- elems <$> getRow 0.5 2 <$> whiteRectPPM
+  r0 <- elems <$> getRow 0.5 2 <$> whiteRectPGM
   return
     $ assert
       (r0 == (drop 10 . take 15 $ elems expectedWhiteRectThreshold))
@@ -184,12 +184,22 @@ t16 = assert
       ((head . solve 1000 $ ean13_2_with_error_xs) == ean13_2)
       "Best solution for `ean13_2_with_error_xs` is `ean13_2"
 
+ean13_2_ppm = fmap fst . P.parseIO ppm $ L.readFile "../netpbm/ean13_2.ppm"
+
+t19 = do
+  ean13 <- findEAN13 <$> ean13_2_ppm
+  return
+    $ assert
+      (ean13 == Just ean13_2)
+      "EAN13 from Wiki sample is parsed correctly"
+
 tests :: IO [Either String String]
 tests = do
   quickCheck prop_checkDigit
   t2'  <- runExceptT t2
   t17' <- runExceptT t17
   t18' <- runExceptT t18
+  t19' <- runExceptT t19
   return [
     return t1,
     return t6,
@@ -208,7 +218,8 @@ tests = do
     return t15,
     return t16,
     t17',
-    t18']
+    t18',
+    t19']
 
 printTests = do
   tests' <- tests

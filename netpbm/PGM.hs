@@ -1,6 +1,7 @@
 module PGM (convertPlainToRawPGM, pgm,
             plainPGM, plainPGMSlow,
-            rawPGM, writeRawPGM, writeRawPGMIO) where
+            rawPGM, writeRawPGM, writeRawPGMIO,
+            Greymap) where
 
 import           Control.Exception (bracket)
 import           Control.Monad.Trans.Class

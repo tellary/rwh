@@ -6,8 +6,10 @@ import           Data.Array      ((!), elems, ixmap, listArray, Array, Ix)
 import           Data.List       (find, elemIndex, group, sortBy)
 import           Data.List.Split (chunksOf)
 import qualified Data.Map        as M
+import           Data.Maybe      (listToMaybe)
 import           Data.Ord        (comparing)
-import           NetpbmCommon    (imageData, imageWidth)
+import           NetpbmCommon    (imageData, imageHeight, imageWidth)
+import           PGM             (Greymap)
 import           PPM             (Pixmap)
 import           PPM2PGM         (ppmToPGM)
 
@@ -270,7 +272,7 @@ solve0 :: (Eq a, Integral d, Ord e, Fractional e) =>
 solve0 n xs = digitSequencesByError m2
   where ds                    = candidateDigits n xs
         (candidates, checks') = splitAt 11 ds
-        checks                = head checks'
+        checks                = if null checks' then [] else head checks'
         m                     = consumeCandidates candidates
         m1                    = consumeFirstDigit n m
         m2                    = consumeCandidatesForCheckDigit checks m1
@@ -278,11 +280,38 @@ solve0 n xs = digitSequencesByError m2
 solve  n = solutionsByError  . solve0 n
 solve1 n = solutionsByError1 . solve0 n
 
-getRow :: (Ord t, Fractional t) => t -> Int -> Pixmap -> Array Int Bit
-getRow t n ppm = ixmap (0, pgmWidth) ((,) n) . threshold t $ pgmData
-  where pgm      = ppmToPGM   ppm
-        pgmData  = imageData  pgm
-        pgmWidth = imageWidth pgm - 1
+getRow :: (Ord t, Fractional t) => t -> Int -> Greymap -> Array Int Bit
+getRow t n pgm = ixmap (0, maxWidthIdx) ((,) n) . threshold t $ pgmData
+  where pgmData     = imageData  pgm
+        maxWidthIdx = imageWidth pgm - 1
 
-withRow :: ([Bit] -> b) -> Int -> Pixmap -> b
-withRow f n = f . elems . getRow 0.5 n
+withRow :: (Ord t, Fractional t) => ([Bit] -> b) -> t -> Int -> Greymap -> b
+withRow f t n =
+  f
+  -- A picture should have some white margin before
+  -- start of the first the marker.
+  . dropWhile (== Zero)
+  -- A picture may be framed black. We're dropping the frame if exists.
+  . dropWhile (== One)
+  . elems . getRow t n
+
+idxParts 0 _ = []
+idxParts _ 0 = []
+idxParts n h = fmap part [0..n']
+  where part i = i*(h + 1) `div` (n' + 1)
+        n' = min n h
+
+solvePGM0 :: (Integral d, Ord e, Fractional e)
+  => Int -- number of rows from image to take
+  -> Int -- number of candidate digits in each raw
+  -> e   -- black/white bit threshold
+  -> Greymap -> [Sequence e d]
+solvePGM0 r n t pgm =
+  sortBy (comparing sequenceError) $ solveRow =<< idxParts r (h - 1)
+  where h           = imageHeight pgm
+        solveRow  r = withRow (solve0 n) t r pgm
+
+findEAN13_0 r n t = listToMaybe . solutionsByError . solvePGM0 r n t . ppmToPGM
+
+findEAN13 :: (Integral d) => Pixmap -> Maybe [d]
+findEAN13 = findEAN13_0 3 3 0.6
