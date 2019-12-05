@@ -2,11 +2,14 @@
 
 module EAN13 where
 
-import           Data.Array      ((!), elems, listArray, Array, Ix)
+import           Data.Array      ((!), elems, ixmap, listArray, Array, Ix)
 import           Data.List       (find, elemIndex, group, sortBy)
 import           Data.List.Split (chunksOf)
 import qualified Data.Map        as M
 import           Data.Ord        (comparing)
+import           NetpbmCommon    (imageData, imageWidth)
+import           PPM             (Pixmap)
+import           PPM2PGM         (ppmToPGM)
 
 inv10 n = tenToZero $ 10 - n `mod` 10
   where tenToZero 10 = 0
@@ -70,7 +73,8 @@ encodeRight d = rightCodes ! d
 
 data Bit = Zero | One deriving (Eq, Show)
 
-threshold :: (Ix k, Integral a) => Double -> Array k a -> Array k Bit
+threshold :: (Ix k, Integral a, Ord r, Fractional r) =>
+  r -> Array k a -> Array k Bit
 threshold r a = binary <$> a
   where binary m
           --   0 pixel represents black
@@ -273,3 +277,9 @@ solve0 n xs = digitSequencesByError m2
 
 solve  n = solutionsByError  . solve0 n
 solve1 n = solutionsByError1 . solve0 n
+
+getRow :: (Ord t, Fractional t) => t -> Int -> Pixmap -> Array Int Bit
+getRow t n ppm = ixmap (0, pgmWidth) ((,) n) . threshold t $ pgmData
+  where pgm      = ppmToPGM   ppm
+        pgmData  = imageData  pgm
+        pgmWidth = imageWidth pgm - 1

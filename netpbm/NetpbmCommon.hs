@@ -1,6 +1,5 @@
-module NetpbmCommon(imageHeight, imageWidth,
-                    skipToNextBlock,
-                    Image(..), Pixel) where
+module NetpbmCommon(imageData, imageDepth, imageHeight, imageWidth,
+                    skipToNextBlock, Image(..), Pixel) where
 
 import           Data.Array  (bounds, Array)
 import           Data.Word   (Word8)
@@ -9,13 +8,12 @@ import           Text.Printf (printf)
 
 type Pixel = Word8
 
-data Image a = Image {
-  imageDepth :: Int,
-  imageData  :: Array (Int, Int) a
-  }
+data Image a = Image Int (Array (Int, Int) a)
 
-imageWidth  (Image _ a) = (fst $ snd $ bounds a) + 1
+imageData   (Image _ a) = a
+imageDepth  (Image d _) = d
 imageHeight (Image _ a) = (snd $ snd $ bounds a) + 1
+imageWidth  (Image _ a) = (fst $ snd $ bounds a) + 1
 
 instance Show (Image a) where
   show i@(Image d _) = printf "Image %i %i %i" w h d

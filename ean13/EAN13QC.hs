@@ -4,7 +4,7 @@ import           Data.Ratio ((%))
 import           EAN13
 import           Control.Exception (assert)
 import           Control.Monad.Trans.Except (runExceptT)
-import           Data.Array ((!), listArray)
+import           Data.Array ((!), elems, listArray)
 import qualified Data.ByteString.Lazy as L
 import           NetpbmCommon
 import qualified Parser as P
@@ -68,6 +68,20 @@ expectedWhiteSqThreshold = listArray ((0,0), (3,3))
    One, Zero, Zero, One,
    One, Zero, Zero, One,
    One,  One,  One, One]
+
+t17 = do
+  r0 <- elems <$> getRow 0.5 0 <$> whiteSqPPM
+  return
+    $ assert
+      (r0 == (take 4 $ elems expectedWhiteSqThreshold))
+      "Expected whiteSqPPM row 0"
+
+t18 = do
+  r0 <- elems <$> getRow 0.5 2 <$> whiteSqPPM
+  return
+    $ assert
+      (r0 == (drop 8 . take 12 $ elems expectedWhiteSqThreshold))
+      "Expected whiteSqPPM row 2"
 
 t2 = do
   w <- whiteSqThreshold
@@ -173,7 +187,9 @@ t16 = assert
 tests :: IO [Either String String]
 tests = do
   quickCheck prop_checkDigit
-  t2' <- runExceptT t2
+  t2'  <- runExceptT t2
+  t17' <- runExceptT t17
+  t18' <- runExceptT t18
   return [
     return t1,
     return t6,
@@ -190,7 +206,9 @@ tests = do
     return t13,
     return t14,
     return t15,
-    return t16]
+    return t16,
+    t17',
+    t18']
 
 printTests = do
   tests' <- tests
