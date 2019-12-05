@@ -17,7 +17,7 @@ rgbmapArray w h d
     Left
     $ printf "Data size doesn't match dimensions (3x(%ix%i) == %i) /= %i"
       w h (3*w*h) l
-  | otherwise = Right $ listArray ((0,0), (w - 1, h - 1)) $ rgbs d
+  | otherwise = Right $ listArray ((0,0), (h - 1, w - 1)) $ rgbs d
   where rgbs          = map rgb . chunksOf 3
         rgb [r, g, b] = (r, g, b)
         rgb _         = error
@@ -47,4 +47,3 @@ ppm = do
   case newPPM width height depth $ L.unpack bitmap of
     Right i -> return $ i
     Left  e -> fail e
-

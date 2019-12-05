@@ -58,34 +58,34 @@ t6 = assert
      ((encodeEAN13 $ take 12 ean13_2) == (Just $ concat ean13_2_parts))
      "encodeEAN13 succeed"
 
-whiteSqPPM = fmap fst $ P.parseIO ppm $ L.readFile "../netpbm/white_sq.ppm"
-whiteSqPGM = ppmToPGM <$> whiteSqPPM
+whiteRectPPM = fmap fst $ P.parseIO ppm $ L.readFile "../netpbm/white_rect.ppm"
+whiteRectPGM = ppmToPGM <$> whiteRectPPM
 
-whiteSqThreshold = threshold 0.5 <$> imageData <$> whiteSqPGM
+whiteRectThreshold = threshold 0.5 <$> imageData <$> whiteRectPGM
 
-expectedWhiteSqThreshold = listArray ((0,0), (3,3))
-  [One,  One,  One, One,
-   One, Zero, Zero, One,
-   One, Zero, Zero, One,
-   One,  One,  One, One]
-
-t17 = do
-  r0 <- elems <$> getRow 0.5 0 <$> whiteSqPPM
-  return
-    $ assert
-      (r0 == (take 4 $ elems expectedWhiteSqThreshold))
-      "Expected whiteSqPPM row 0"
-
-t18 = do
-  r0 <- elems <$> getRow 0.5 2 <$> whiteSqPPM
-  return
-    $ assert
-      (r0 == (drop 8 . take 12 $ elems expectedWhiteSqThreshold))
-      "Expected whiteSqPPM row 2"
+expectedWhiteRectThreshold = listArray ((0,0), (3,4))
+  [One,  One,  One, One,  One,
+   One, Zero, Zero, Zero, One,
+   One, Zero, Zero, Zero, One,
+   One,  One,  One, One,  One]
 
 t2 = do
-  w <- whiteSqThreshold
-  return $ assert (expectedWhiteSqThreshold == w) "expectedWhiteSqThreshold"
+  w <- whiteRectThreshold
+  return $ assert (expectedWhiteRectThreshold == w) "expectedWhiteRectThreshold"
+
+t17 = do
+  r0 <- elems <$> getRow 0.5 0 <$> whiteRectPPM
+  return
+    $ assert
+      (r0 == (take 5 $ elems expectedWhiteRectThreshold))
+      "Expected whiteRectPPM row 0"
+
+t18 = do
+  r0 <- elems <$> getRow 0.5 2 <$> whiteRectPPM
+  return
+    $ assert
+      (r0 == (drop 10 . take 15 $ elems expectedWhiteRectThreshold))
+      "Expected whiteRectPPM row 2"
 
 t3 = assert ((runs $ leftOddCodes!0) == [3,2,1,1])
      "Expected leftOddCodes!0 runs"

@@ -12,8 +12,8 @@ data Image a = Image Int (Array (Int, Int) a)
 
 imageData   (Image _ a) = a
 imageDepth  (Image d _) = d
-imageHeight (Image _ a) = (snd $ snd $ bounds a) + 1
-imageWidth  (Image _ a) = (fst $ snd $ bounds a) + 1
+imageHeight (Image _ a) = (fst $ snd $ bounds a) + 1
+imageWidth  (Image _ a) = (snd $ snd $ bounds a) + 1
 
 instance Show (Image a) where
   show i@(Image d _) = printf "Image %i %i %i" w h d

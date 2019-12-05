@@ -29,7 +29,7 @@ greymapArray w h d
     Left
     $ printf "Data size doesn't match dimensions (%ix%i == %i) /= %i"
       w h (w*h) l
-  | otherwise = Right $ listArray ((0,0), (w - 1, h - 1)) d
+  | otherwise = Right $ listArray ((0,0), (h - 1, w - 1)) d
   where l = length d
 
 greymap w h depth d = do

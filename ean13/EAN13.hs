@@ -283,3 +283,6 @@ getRow t n ppm = ixmap (0, pgmWidth) ((,) n) . threshold t $ pgmData
   where pgm      = ppmToPGM   ppm
         pgmData  = imageData  pgm
         pgmWidth = imageWidth pgm - 1
+
+withRow :: ([Bit] -> b) -> Int -> Pixmap -> b
+withRow f n = f . elems . getRow 0.5 n
