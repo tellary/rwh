@@ -2,15 +2,18 @@
 
 module EAN13 where
 
+import           Control.Monad.Trans.Except (runExceptT)
 import           Data.Array      ((!), elems, ixmap, listArray, Array, Ix)
+import qualified Data.ByteString.Lazy as L
 import           Data.List       (find, elemIndex, group, sortBy)
 import           Data.List.Split (chunksOf)
 import qualified Data.Map        as M
 import           Data.Maybe      (listToMaybe)
 import           Data.Ord        (comparing)
 import           NetpbmCommon    (imageData, imageHeight, imageWidth)
+import qualified Parser as P
 import           PGM             (Greymap)
-import           PPM             (Pixmap)
+import           PPM             (ppm, Pixmap)
 import           PPM2PGM         (ppmToPGM)
 
 inv10 n = tenToZero $ 10 - n `mod` 10
@@ -311,7 +314,19 @@ solvePGM0 r n t pgm =
   where h           = imageHeight pgm
         solveRow  r = withRow (solve0 n) t r pgm
 
-findEAN13_0 r n t = listToMaybe . solutionsByError . solvePGM0 r n t . ppmToPGM
+findEAN13_0 r n t = listToMaybe . solutionsByError1 . solvePGM0 r n t . ppmToPGM
 
-findEAN13 :: (Integral d) => Pixmap -> Maybe [d]
+findEAN13 :: (Integral d, Ord e, Fractional e) => Pixmap -> Maybe (e, [d])
 findEAN13 = findEAN13_0 3 3 0.6
+
+readEAN13File0 :: (Integral d, Ord e, Fractional e)
+  => Int
+  -> Int
+  -> e
+  -> FilePath -> IO (Either String (e, [d]))
+readEAN13File0 r n t f = do
+  ppmFileE <- runExceptT ppmFileT
+  return $ do
+    ppmFile <- ppmFileE
+    maybe (Left $ "No EAN13 found in " ++ f) Right $ findEAN13 ppmFile
+  where ppmFileT = fmap fst . P.parseIO ppm $ L.readFile f

@@ -187,10 +187,10 @@ t16 = assert
 ean13_2_ppm = fmap fst . P.parseIO ppm $ L.readFile "../netpbm/ean13_2.ppm"
 
 t19 = do
-  ean13 <- findEAN13 <$> ean13_2_ppm
+  Just (_, ean13) <- findEAN13 <$> ean13_2_ppm
   return
     $ assert
-      (ean13 == Just ean13_2)
+      (ean13 == ean13_2)
       "EAN13 from Wiki sample is parsed correctly"
 
 tests :: IO [Either String String]
