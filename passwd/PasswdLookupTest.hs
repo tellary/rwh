@@ -1,4 +1,3 @@
-import qualified Data.Map as M
 import Control.Exception (assert)
 import PasswdLookup
 import Text.ParserCombinators.ReadPrec
@@ -30,9 +29,9 @@ t5 = assert (v5 == [(aptEntry,"")]) "t5"
 
 maps = passwdEntryMaps <$> passwdEntries
 t6 = flip assert "Record for uid 1000 is correct" .
-     (== Just ilyaRecord) . M.lookup 1000 . fst <$> maps
+     (== Just ilyaRecord) . flip lookupByUID 1000 <$> maps
 t7 = flip assert "Record for name 'ilya' is correct" .
-     (== Just ilyaRecord) . M.lookup "ilya" . snd <$> maps
+     (== Just ilyaRecord) . flip lookupByName "ilya" <$> maps
 
 
 tests :: IO [String]
