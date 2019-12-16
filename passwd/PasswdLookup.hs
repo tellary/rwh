@@ -72,5 +72,8 @@ type UIDMap      = M.Map Int    PasswdEntry
 type UsernameMap = M.Map String PasswdEntry
 
 passwdEntryMaps :: [PasswdEntry] -> (UIDMap, UsernameMap)
-passwdEntryMaps = undefined
+passwdEntryMaps = foldr updateMaps (M.empty, M.empty)
+  where updateMaps p (uidMap, usernameMap) =
+          (M.insert (uid p)      p uidMap,
+           M.insert (userName p) p usernameMap)
    

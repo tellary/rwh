@@ -1,16 +1,17 @@
-import PasswdLookup
+import qualified Data.Map as M
 import Control.Exception (assert)
+import PasswdLookup
 import Text.ParserCombinators.ReadPrec
 
-v1 = read "ilya:x:1000:1000:abc:/home/ilya:/bin/bash"
-t1 = assert (userName v1 == "ilya") "t1"
+ilyaRecord = read "ilya:x:1000:1000::/home/ilya:/bin/bash"
+t1 = assert (userName ilyaRecord == "ilya") "Name in `ilya` record is correct"
 
 v2 = read "systemd-timesync:x:103:104:systemd Time Synchronization,,,:/run/systemd:/bin/false"
 t2 = assert (userName v2 == "systemd-timesync") "t2"
 
-v3 = readPasswdEntries <$> readFile "./passwd"
+passwdEntries = readPasswdEntries <$> readFile "./passwd"
 t3 = flip assert "All ./passwd entries have userName"
-     . and . map (not . null . userName) <$> v3
+     . and . map (not . null . userName) <$> passwdEntries
 
 v4 = read "_apt:x:100:65534::/nonexistent:/bin/false"
 t4 = assert (userName v4 == "_apt") "t4"
@@ -27,7 +28,16 @@ aptEntry = PasswdEntry {
 v5 = readPrec_to_S readPasswdEntry 0 "_apt:x:100:65534::/nonexistent:/bin/false"
 t5 = assert (v5 == [(aptEntry,"")]) "t5"
 
+maps = passwdEntryMaps <$> passwdEntries
+t6 = flip assert "Record for uid 1000 is correct" .
+     (== Just ilyaRecord) . M.lookup 1000 . fst <$> maps
+t7 = flip assert "Record for name 'ilya' is correct" .
+     (== Just ilyaRecord) . M.lookup "ilya" . snd <$> maps
+
+
 tests :: IO [String]
 tests = do
   t3' <- t3
-  return [t1, t2, t3', t4, t5]
+  t6' <- t6
+  t7' <- t7
+  return [t1, t2, t3', t4, t5, t6', t7']
