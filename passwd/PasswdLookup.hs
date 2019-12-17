@@ -41,17 +41,6 @@ readPasswdNum = do
   s <- readPasswdString
   return $ read s
 
-readPasswdEntry0 :: ReadPrec (String, Int, Int, String)
-readPasswdEntry0 = do
-  userName     <- readPasswdString
-  "x"   <- readPasswdString
-  uid          <- readPasswdNum
-  gid          <- readPasswdNum
-  readableName <- readPasswdString
-  -- homeDir      <- readPasswdString
-  -- shell        <- readPasswdString
-  return (userName, uid, gid, readableName)
-
 -- readPrec_to_S readPasswdEntry 0 "ilya:x:1000:1000:abc:/home/ilya:/bin/bash"
 readPasswdEntry :: ReadPrec PasswdEntry
 readPasswdEntry = do
@@ -150,7 +139,7 @@ passwdLookupMenu1 maps = do
 
 passwdLookupMenu :: PasswdEntryMaps -> IO ()
 passwdLookupMenu maps = do
-  mapM (putStrLn . \(n, m) -> printf "%i. %s" n $ show m) menuOpts
+  mapM (\(n, m) -> printf "%i. %s\n" n $ show m) menuOpts
   itemNumberStr <- getLine
   case reads itemNumberStr of
     [(itemNumber, _)] -> do
