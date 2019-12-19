@@ -12,7 +12,7 @@ data SymbolArith a =
 
 precedence (Symbol     _  ) = 9
 precedence (Number     _  ) = 9
-precedence (UnaryArith _ _) = 9
+precedence (UnaryArith _ _) = 8
 precedence (BinaryArith Pow _ _) = 7
 precedence (BinaryArith Mul _ _) = 6
 precedence (BinaryArith Div _ _) = 6
@@ -27,6 +27,29 @@ instance Num a => Num (SymbolArith a) where
   signum a = UnaryArith "signum" a
   fromInteger i = Number (fromInteger i)
 
+instance Fractional a => Fractional (SymbolArith a) where
+  a / b          = BinaryArith Div a b
+  fromRational r = Number (fromRational r)
+
+instance Fractional a => Floating (SymbolArith a) where
+  pi     = Symbol "pi"
+  exp    = UnaryArith "exp"
+  log    = UnaryArith "log"
+  sqrt   = UnaryArith "sqrt"
+  a ** b = BinaryArith Pow a b
+  sin    = UnaryArith "sin"
+  cos    = UnaryArith "cos"
+  tan    = UnaryArith "tan"
+  asin   = UnaryArith "asin"
+  acos   = UnaryArith "acos"
+  atan   = UnaryArith "atan"
+  sinh   = UnaryArith "sinh"
+  cosh   = UnaryArith "cosh"
+  tanh   = UnaryArith "tanh"
+  asinh  = UnaryArith "asinh"
+  acosh  = UnaryArith "acosh"
+  atanh  = UnaryArith "atanh"
+
 showParens a = "(" ++ showArith a ++ ")"
 
 showOp Mul = "*"
@@ -35,9 +58,14 @@ showOp Sum = " + "
 showOp Neg = " - "
 showOp Pow = "^"
 
-showArith (Symbol s)            = show s
-showArith (Number n)            = show n
-showArith (UnaryArith op a)     = op ++ showArith a
+showArith (Symbol s) = s
+showArith (Number n) = show n
+
+showArith u@(UnaryArith op a)
+  | pu <= pa  = op ++ " " ++ showArith  a
+  | otherwise = op ++ " " ++ showParens a
+  where pu = precedence u
+        pa = precedence a
 
 showArith a@(BinaryArith op b c)
   | pa <= pb && pa <= pc = showArith  b ++ showOp op ++ showArith  c
