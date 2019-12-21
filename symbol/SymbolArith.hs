@@ -86,10 +86,18 @@ showArith a@(BinaryArith op b c)
         pb = precedence b
         pc = precedence c
 
+showArithParens0 (BinaryArith op a b) =
+  "(" ++ showArithParens0 a ++ showOp op ++ showArithParens0 b ++ ")"
+showArithParens0 e                    = showArith e
+
+showArithParens (BinaryArith op a b) =
+  showArithParens0 a ++ showOp op ++ showArithParens0 b
+showArithParens e                    = showArith e
+
 getSymbol (BinaryArith Mul s@(Symbol _) b) = Just (b, s)
 getSymbol (BinaryArith Mul a s@(Symbol _)) = Just (a, s)
-getSymbol s@(Symbol _)                     = Just (Number 1, s)
-getSymbol  _                             = Nothing
+getSymbol s@(Symbol _)                     = Just (1, s)
+getSymbol _                                = Nothing
 
 samePrecedence a@(BinaryArith _ b c) =
   precedence a == precedence b && precedence a == precedence c
@@ -116,11 +124,17 @@ BinaryArith Sum
      (BinaryArith Mul (Number 3) (Symbol "x"))
   )
 -}
-swapTrinary a@(BinaryArith opA b@(BinaryArith opB c d) e)
+moveParensRight a@(BinaryArith opA b@(BinaryArith opB c d) e)
   | precedence a == precedence b =
       Just $ BinaryArith opB c (BinaryArith opA d e)
   | otherwise        = Nothing
-swapTrinary _ = Nothing
+moveParensRight _ = Nothing
+
+moveParensLeft a@(BinaryArith opA b c@(BinaryArith opC d e))
+  | precedence a == precedence c =
+      Just $ BinaryArith opC (BinaryArith opA b d) e
+  | otherwise        = Nothing
+moveParensLeft _ = Nothing
 
 swapBinary (BinaryArith op a b) = Just $ BinaryArith op b a
 swapBinary  _ = Nothing
@@ -145,25 +159,65 @@ sameSymbolOp (BinaryArith Neg b c) = sameSymbolSum Neg b c
 sameSymbolOp (BinaryArith Mul b c) = sameSymbolMul     b c
 sameSymbolOp _ = Nothing
 
-simplify s@(Symbol _) = s
-simplify n@(Number _) = n
-simplify (BinaryArith Sum (Number 0) s) = s
-simplify (BinaryArith Sum s (Number 0)) = s
-simplify (BinaryArith Neg (Number 0) s) = s
-simplify (BinaryArith Neg s (Number 0)) = s
-simplify (BinaryArith Mul (Number 1) s) = s
-simplify (BinaryArith Mul s (Number 1)) = s
-simplify (BinaryArith Mul (Number 0) _) = Number 0
-simplify (BinaryArith Mul _ (Number 0)) = Number 0
-simplify (BinaryArith Div s (Number 1)) = s
-simplify (BinaryArith Div (Number 0) _) = Number 0
-simplify (BinaryArith op (Number a) (Number b)) = Number $ binaryFunc op a b
-simplify a@(BinaryArith op b c) = r
-  where Just r = sameSymbolOp a
-                 <|> (do
-                         a' <- swapTrinary a
-                         return $ simplify a')
-                 <|> Just (BinaryArith op (simplify b) (simplify c))
-simplify e = e
+-- Change order of an arithmetic tree into a more "canonical" form
+canonify (BinaryArith op a b@(Number _)) = BinaryArith op b a
+canonify a@(BinaryArith _ (BinaryArith _ (Number _) _) _) =
+  maybe a id $ moveParensRight a  
+canonify e = e
 
+canonifyChild (BinaryArith op b c) =
+  (do
+      b' <- canonifyMaybe b
+      return $ BinaryArith op b' c)
+  <|>
+  (do
+      c' <- canonifyMaybe c
+      return $ BinaryArith op b c')
+canonifyChild _ = Nothing
+
+canonifyMaybe e
+  | e /= e'   = Just e'
+  | otherwise = Nothing
+  where e' = canonify e
+
+simplifyMaybe :: (Eq a, Floating a) => SymbolArith a -> Maybe (SymbolArith a)
+simplifyMaybe (Symbol _) = Nothing
+simplifyMaybe (Number _) = Nothing
+simplifyMaybe (BinaryArith Sum (Number 0) s) = Just s
+simplifyMaybe (BinaryArith Sum s (Number 0)) = Just s
+simplifyMaybe (BinaryArith Neg (Number 0) s) = Just s
+simplifyMaybe (BinaryArith Neg s (Number 0)) = Just s
+simplifyMaybe (BinaryArith Mul (Number 1) s) = Just s
+simplifyMaybe (BinaryArith Mul s (Number 1)) = Just s
+simplifyMaybe (BinaryArith Mul (Number 0) _) = Just $ Number 0
+simplifyMaybe (BinaryArith Mul _ (Number 0)) = Just $ Number 0
+simplifyMaybe (BinaryArith Div s (Number 1)) = Just s
+simplifyMaybe (BinaryArith Div (Number 0) _) = Just $ Number 0
+simplifyMaybe (BinaryArith op (Number a) (Number b)) =
+  Just . Number $ binaryFunc op a b
+simplifyMaybe a@(BinaryArith _  (Number _) (BinaryArith _ (Number _) _)) =
+  (moveParensLeft a >>= simplifyMaybe) <|> simplifyBinary a
+simplifyMaybe a@(BinaryArith _ _ _) = simplifyBinary a
+simplifyMaybe e = canonifyMaybe e
+
+simplifyOnce a = maybe a id $ simplifyMaybe a
+simplify a = case simplifyMaybe a of
+  Just a' -> simplify a'
+  Nothing -> a
+
+simplifyBinary a@(BinaryArith _ _ _) =
+  sameSymbolOp a <|> simplifyChild a <|> canonifyMaybe a
+simplifyBinary _ = Nothing
+
+simplifyChild :: (Eq a, Floating a) =>
+  SymbolArith a -> Maybe (SymbolArith a)
+simplifyChild (BinaryArith op b c) =
+  (do
+      b' <- simplifyMaybe b
+      return $ BinaryArith op b' c)
+  <|>
+  (do
+      c' <- simplifyMaybe c
+      return $ BinaryArith op b c')
+simplifyChild _ = Nothing
 -- TODO: "x + 2.0 + 3.0*x"
