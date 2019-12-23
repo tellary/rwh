@@ -11,6 +11,12 @@ binaryFunc Mul = (*)
 binaryFunc Div = (/)
 binaryFunc Pow = (**)
 
+commutative Sum = True
+commutative Neg = False
+commutative Mul = True
+commutative Div = False
+commutative Pow = False
+
 data SymbolArith a =
     Symbol String
   | BinaryArith Op (SymbolArith a) (SymbolArith a)
@@ -94,10 +100,8 @@ showArithParens (BinaryArith op a b) =
   showArithParens0 a ++ showOp op ++ showArithParens0 b
 showArithParens e                    = showArith e
 
-getSymbol (BinaryArith Mul s@(Symbol _) b) = Just (b, s)
-getSymbol (BinaryArith Mul a s@(Symbol _)) = Just (a, s)
-getSymbol s@(Symbol _)                     = Just (1, s)
-getSymbol _                                = Nothing
+getMultiple (BinaryArith Mul a s) = Just (a, s)
+getMultiple s                     = Just (1, s)
 
 samePrecedence a@(BinaryArith _ b c) =
   precedence a == precedence b && precedence a == precedence c
@@ -140,14 +144,14 @@ swapBinary (BinaryArith op a b) = Just $ BinaryArith op b a
 swapBinary  _ = Nothing
 
 sameSymbolSum op b c = do
-  (bn, bs) <- getSymbol b
-  (cn, cs) <- getSymbol c
+  (bn, bs) <- getMultiple b
+  (cn, cs) <- getMultiple c
   if (bs == cs)
     then Just $ BinaryArith Mul (BinaryArith op bn cn) bs
     else Nothing
 sameSymbolMul b c = do
-  (bn, bs) <- getSymbol b
-  (cn, cs) <- getSymbol c
+  (bn, bs) <- getMultiple b
+  (cn, cs) <- getMultiple c
   if (bs == cs)
     then Just
          $ BinaryArith Mul
@@ -159,11 +163,21 @@ sameSymbolOp (BinaryArith Neg b c) = sameSymbolSum Neg b c
 sameSymbolOp (BinaryArith Mul b c) = sameSymbolMul     b c
 sameSymbolOp _ = Nothing
 
+moveNumberLeft (BinaryArith op a b@(Number _))
+  | commutative op = Just $ BinaryArith op b a
+  | otherwise      = Nothing
+moveNumberLeft _   = Nothing
+
+moveNumberLeftOfParens a@(BinaryArith _ (BinaryArith _ (Number _) _) _) =
+  moveParensRight a
+moveNumberLeftOfParens _ = Nothing
+
 -- Change order of an arithmetic tree into a more "canonical" form
-canonify (BinaryArith op a b@(Number _)) = BinaryArith op b a
-canonify a@(BinaryArith _ (BinaryArith _ (Number _) _) _) =
-  maybe a id $ moveParensRight a  
-canonify e = e
+canonifyMaybe e = moveNumberLeft e <|> moveNumberLeftOfParens e
+
+canonify e = case canonifyMaybe e of
+  Just e' -> e'
+  Nothing -> e
 
 canonifyChild (BinaryArith op b c) =
   (do
@@ -174,11 +188,6 @@ canonifyChild (BinaryArith op b c) =
       c' <- canonifyMaybe c
       return $ BinaryArith op b c')
 canonifyChild _ = Nothing
-
-canonifyMaybe e
-  | e /= e'   = Just e'
-  | otherwise = Nothing
-  where e' = canonify e
 
 simplifyMaybe :: (Eq a, Floating a) => SymbolArith a -> Maybe (SymbolArith a)
 simplifyMaybe (Symbol _) = Nothing
@@ -220,4 +229,4 @@ simplifyChild (BinaryArith op b c) =
       c' <- simplifyMaybe c
       return $ BinaryArith op b c')
 simplifyChild _ = Nothing
--- TODO: "x + 2.0 + 3.0*x"
+
