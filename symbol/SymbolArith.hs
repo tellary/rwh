@@ -236,7 +236,7 @@ simplifyChild (BinaryArith op b c) =
 simplifyChild _ = Nothing
 
 tryParensLeft e@(BinaryArith _ a (BinaryArith _ b _))
-  -- This guard is necessary to avoid recursion
+  -- This guard is necessary to avoid endless recursion
   | a <= b    = moveParensLeft e >>= simplifyMaybe
   | otherwise = Nothing
-tryParensLeft _                     = Nothing
+tryParensLeft _ = Nothing
