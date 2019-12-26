@@ -38,4 +38,11 @@ t10 = assert
         == "2.0*sin (3.0 + 3.0*x)")
       "simplify (sin (x + 2.0*x + 3.0) + sin (2.0*x + 3.0 + x)) works"
 
-tests = [t1, t2, t3, t4, t5, t6, t7, t8, t9, t10]
+t11 = assert
+      ((showArith . simplify
+        $ sin (sym "x" + 2*sym "y" + sym "x")
+        - sin (sym "y" + 2*sym "x" + sym "y"))
+       == "0.0")
+      "simplify (sin (x + 2.0*y + x) - sin (y + 2.0*x + y)) works"
+
+tests = [t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11]

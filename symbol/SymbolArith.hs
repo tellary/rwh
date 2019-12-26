@@ -3,7 +3,7 @@ module SymbolArith where
 import Control.Applicative ((<|>))
 
 data Op = Sum | Neg | Mul | Div | Pow
-  deriving (Eq, Show)
+  deriving (Eq, Ord, Show)
 
 binaryFunc Sum = (+)
 binaryFunc Neg = (-)
@@ -18,11 +18,11 @@ commutative Div = False
 commutative Pow = False
 
 data SymbolArith a =
-    Symbol String
-  | BinaryArith Op (SymbolArith a) (SymbolArith a)
+    Number a
+  | Symbol String
   | UnaryArith String (SymbolArith a)
-  | Number a
-  deriving (Eq, Show)
+  | BinaryArith Op (SymbolArith a) (SymbolArith a)
+  deriving (Eq, Ord, Show)
 
 precedence (Symbol     _  ) = 9
 precedence (Number     _  ) = 9
@@ -172,8 +172,14 @@ moveNumberLeftOfParens a@(BinaryArith _ (BinaryArith _ (Number _) _) _) =
   moveParensRight a
 moveNumberLeftOfParens _ = Nothing
 
+orderBinary (BinaryArith op a b)
+  | commutative op && a > b = Just $ BinaryArith op b a
+  | otherwise               = Nothing
+orderBinary _ = Nothing
+
 -- Change order of an arithmetic tree into a more "canonical" form
 canonifyMaybe e = moveNumberLeft e <|> moveNumberLeftOfParens e
+  <|> orderBinary e
 
 canonify e = case canonifyMaybe e of
   Just e' -> e'
@@ -189,7 +195,8 @@ canonifyChild (BinaryArith op b c) =
       return $ BinaryArith op b c')
 canonifyChild _ = Nothing
 
-simplifyMaybe :: (Eq a, Floating a) => SymbolArith a -> Maybe (SymbolArith a)
+simplifyMaybe :: (Eq a, Ord a, Floating a) =>
+  SymbolArith a -> Maybe (SymbolArith a)
 simplifyMaybe (Symbol _) = Nothing
 simplifyMaybe (Number _) = Nothing
 simplifyMaybe (BinaryArith Sum (Number 0) s) = Just s
@@ -204,8 +211,6 @@ simplifyMaybe (BinaryArith Div s (Number 1)) = Just s
 simplifyMaybe (BinaryArith Div (Number 0) _) = Just $ Number 0
 simplifyMaybe (BinaryArith op (Number a) (Number b)) =
   Just . Number $ binaryFunc op a b
-simplifyMaybe a@(BinaryArith _  (Number _) (BinaryArith _ (Number _) _)) =
-  (moveParensLeft a >>= simplifyMaybe) <|> simplifyBinary a
 simplifyMaybe a@(BinaryArith _ _ _) = simplifyBinary a
 simplifyMaybe (UnaryArith fn e) = UnaryArith fn <$> simplifyMaybe e
 
@@ -215,10 +220,10 @@ simplify a = case simplifyMaybe a of
   Nothing -> a
 
 simplifyBinary a@(BinaryArith _ _ _) =
-  sameSymbolOp a <|> simplifyChild a <|> canonifyMaybe a
+  sameSymbolOp a <|> simplifyChild a <|> tryParensLeft a <|> canonifyMaybe a
 simplifyBinary _ = Nothing
 
-simplifyChild :: (Eq a, Floating a) =>
+simplifyChild :: (Eq a, Ord a, Floating a) =>
   SymbolArith a -> Maybe (SymbolArith a)
 simplifyChild (BinaryArith op b c) =
   (do
@@ -230,3 +235,8 @@ simplifyChild (BinaryArith op b c) =
       return $ BinaryArith op b c')
 simplifyChild _ = Nothing
 
+tryParensLeft e@(BinaryArith _ a (BinaryArith _ b _))
+  -- This guard is necessary to avoid recursion
+  | a <= b    = moveParensLeft e >>= simplifyMaybe
+  | otherwise = Nothing
+tryParensLeft _                     = Nothing
