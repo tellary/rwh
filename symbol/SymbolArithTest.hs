@@ -20,16 +20,22 @@ t6 = assert
 
 t7 = assert
      ((showArith . simplify $ sym "x" + 2 + 3*sym "x") == "2.0 + 4.0*x")
-     ("simplify (x + 2 + 3x) works")
+     "simplify (x + 2 + 3x) works"
 
 t8 = assert
      ((showArith <$> simplify $ sym "x" ** 2 + 2 + 3*sym "x" ** 2)
       == "2.0 + 4.0*x^2.0")
-     ("simplify (x^2 + 2 + 3x^2) works")
+     "simplify (x^2 + 2 + 3x^2) works"
 
 t9 = assert
      ((showArith <$> simplify $ sin (sym "x") ** 2 + 2 + 3*sin (sym "x") ** 2)
       == "2.0 + 4.0*sin x^2.0")
-     ("simplify (sin x^2 + 2 + sin x^2) works")
+     "simplify (sin x^2 + 2 + sin x^2) works"
 
-tests = [t1, t2, t3, t4, t5, t6, t7, t8, t9]
+t10 = assert
+      ((showArith . simplify
+        $ sin (sym "x" + 2*sym "x" + 3) + sin (2*sym "x" + 3 + sym "x"))
+        == "2.0*sin (3.0 + 3.0*x)")
+      "simplify (sin (x + 2.0*x + 3.0) + sin (2.0*x + 3.0 + x)) works"
+
+tests = [t1, t2, t3, t4, t5, t6, t7, t8, t9, t10]

@@ -207,7 +207,7 @@ simplifyMaybe (BinaryArith op (Number a) (Number b)) =
 simplifyMaybe a@(BinaryArith _  (Number _) (BinaryArith _ (Number _) _)) =
   (moveParensLeft a >>= simplifyMaybe) <|> simplifyBinary a
 simplifyMaybe a@(BinaryArith _ _ _) = simplifyBinary a
-simplifyMaybe e = canonifyMaybe e
+simplifyMaybe (UnaryArith fn e) = UnaryArith fn <$> simplifyMaybe e
 
 simplifyOnce a = maybe a id $ simplifyMaybe a
 simplify a = case simplifyMaybe a of
