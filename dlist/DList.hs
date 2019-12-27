@@ -1,7 +1,5 @@
 module DList where
 
-import Data.List (foldl')
-
 newtype DList a = DList { unwrap :: [a] -> [a] }
 
 instance Show a => Show (DList a) where
@@ -13,10 +11,11 @@ add d e = DList $ unwrap d . (e:)
 
 empty = DList id
 
-fromList :: Foldable t => t a -> DList a
-fromList = foldl' add empty
+fromList l = DList (l ++)
 
 append d1 d2 = DList $ unwrap d1 . unwrap d2
+
+cons x (DList xs) = DList $ (x:) . xs
 
 instance Monoid (DList a) where
   mempty  = empty
