@@ -20,3 +20,6 @@ cons x (DList xs) = DList $ (x:) . xs
 instance Monoid (DList a) where
   mempty  = empty
   mappend = append
+
+instance Foldable (DList) where
+  foldr f z = foldr f z . toList
