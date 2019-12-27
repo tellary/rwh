@@ -240,3 +240,5 @@ tryParensLeft e@(BinaryArith _ a (BinaryArith _ b _))
   | a <= b    = moveParensLeft e >>= simplifyMaybe
   | otherwise = Nothing
 tryParensLeft _ = Nothing
+
+-- TODO: showArithParens . simplify $ (sym "x" + 1)*sym "x" + sym "x" + 1
