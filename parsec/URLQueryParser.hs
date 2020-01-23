@@ -1,10 +1,11 @@
 module URLQueryParser where
 
-import Text.ParserCombinators.Parsec
 import Numeric (readHex)
+import Text.ParserCombinators.Parsec
 
+query1 = query <* eof
 query :: CharParser st [(String, Maybe String)]
-query = sepBy fieldValue (char '&') <* eof
+query = sepBy fieldValue (char '&')
 fieldValue :: CharParser st (String, Maybe String)
 fieldValue = (,) <$> field <*> optionMaybe (char '=' *> value)
 
@@ -12,7 +13,6 @@ urlChar =
       directChar
   <|> spaceChar
   <|> hexChar
-  <|> (noneOf "=&" >>= \c -> fail ("Invalid URL char: " ++ [c]))
 
 isDirectChar c =
      c `elem` ['A'..'Z']
