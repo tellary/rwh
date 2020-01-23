@@ -1,6 +1,7 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 module JSON where
 
+import Data.Either (fromRight)
 import SimpleJSON
 
 type JSONError = String
@@ -70,4 +71,11 @@ jobjToJValue = JObject . JObj . map (fmap toJValue) . fromJObj
 instance (JSON a) => JSON (JObj a) where
   fromJValue = jobjFromJValue
   toJValue = jobjToJValue
+
+jobjAssoc :: JValue -> Either String [(String, JValue)]
+jobjAssoc = fmap fromJObj . fromJValue
+
+jobjLookup k = fromJValue' . lookup k . fromRight [] . jobjAssoc
+  where fromJValue' Nothing = Left "Not found"
+        fromJValue' (Just v)  = fromJValue v
 

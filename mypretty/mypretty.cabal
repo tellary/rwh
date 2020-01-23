@@ -14,5 +14,4 @@ Build-Type:        Simple
 library
   Exposed-Modules: Prettifier
                    PrettyJSON
-                   SimpleJSON
-  Build-Depends:   base >= 2.0
+  Build-Depends:   myjson, base >= 2.0

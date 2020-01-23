@@ -1,0 +1,22 @@
+{
+    "name": "Bob",
+    "address": null,
+    "age": -5,
+    "father": {
+        "name": "Rob",
+        "age": 65,
+        "kids": [
+            {
+                "name": "Bob"
+            },
+            {
+                "name": "Mary",
+                "age": 25,
+                "kids": [{
+                    "name": "John",
+                    "age": 1
+                }]
+            }
+        ]
+    }
+}

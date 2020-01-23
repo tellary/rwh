@@ -7,13 +7,13 @@ data JValue = JNumber Double |
               JBool Bool |
               JNull |
               JArray (JAry JValue) |
-              JObject (JObj JValue) deriving (Show)
+              JObject (JObj JValue) deriving (Eq, Show)
             
 newtype JAry a = JAry {
   fromJAry :: [a]
-  } deriving (Show)
+  } deriving (Eq, Show)
 
 newtype JObj a = JObj {
   fromJObj :: [(String, a)]
-  } deriving (Show)
+  } deriving (Eq, Show)
 

@@ -1,0 +1,14 @@
+Name:              myjson
+Version:           0.2
+
+Synopsis:          My JSON support
+Author:            My Self
+Maintainer:        tellary@gmail.com
+
+Cabal-Version:     >= 1.2
+Build-Type:        Simple
+
+library
+  Exposed-Modules: JSON
+                   SimpleJSON
+  Build-Depends:   base >= 2.0
