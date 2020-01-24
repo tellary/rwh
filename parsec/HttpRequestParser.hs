@@ -1,8 +1,12 @@
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
+
 module HttpRequestParser where
 
 import URLQueryParser (query)
+import Text.Parsec.Prim (Stream, uncons)
 import Text.ParserCombinators.Parsec
 import Text.Printf (printf)
+
 
 data HttpMethod    = GET | POST deriving (Eq, Show)
 type RequestParam  = (String, Maybe String)
@@ -35,6 +39,12 @@ httpRequestP = do
 sp    = many  (char ' ')
 sp1   = many1 (char ' ')
 notSp = many  (noneOf " \t\n\r?")
+
+data LimitedStream s = LimitedStream Int s
+instance Monad m => Stream (LimitedStream [tok]) m tok where
+  uncons (LimitedStream _ [])     = return $ Nothing
+  uncons (LimitedStream 0 _ )     = return $ Nothing
+  uncons (LimitedStream n (t:ts)) = return (Just (t, LimitedStream (n - 1) ts))
 
 methodP = (GET <$ string "GET" <|> POST <$ string "POST") <* sp1
 uriP = string "*" <|> absolutePathP <|> absoluteUriP

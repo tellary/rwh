@@ -1,6 +1,7 @@
 import Control.Exception (assert)
+import Data.Either (isLeft)
 import HttpRequestParser
-import Text.ParserCombinators.Parsec (parseFromFile)
+import Text.ParserCombinators.Parsec
 
 r1 = parseFromFile httpRequestP "1.http"
 r2 = parseFromFile httpRequestP "2.http"
@@ -20,6 +21,10 @@ t6 = assert . (== "1234567890123456789012345")
   .   eitherError body    <$> r1 <*> pure "r1 body is 25 chars"
 t7 = assert . (== [("Content-Length", "25")])
   .   eitherError headers <$> r1
-  <*> pure "r1 headers is 'Content-Length: 25' only"
+  <*> pure "r1 headers is [(Content-Length: 25)]"
 
-tests = sequence [t1, t2, t3, t4, t5, t6, t7]
+t8 = assert
+     (isLeft . parse (string "abc") "" . LimitedStream 2 $ cycle "abc")
+     "Parsing \"abc\" on a stream limited to 2 fails"
+
+tests = sequence [t1, t2, t3, t4, t5, t6, t7, return t8] >>= mapM_ putStrLn
