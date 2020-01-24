@@ -1,5 +1,5 @@
 import Control.Exception (assert)
-import Data.Either (isLeft)
+import Data.Either (fromLeft, isLeft)
 import HttpRequestParser
 import Text.ParserCombinators.Parsec
 
@@ -26,5 +26,11 @@ t7 = assert . (== [("Content-Length", "25")])
 t8 = assert
      (isLeft . parse (string "abc") "" . LimitedStream 2 $ cycle "abc")
      "Parsing \"abc\" on a stream limited to 2 fails"
+t9 = assert
+     (3 == (sourceColumn . errorPos . fromLeft undefined
+      . parse (limit 2 (char 'a' *> char 'b' *> char 'c')) ""
+      $ UnlimitedStream "abc"))
+     "Parsing 'a' *> 'b' *> 'c' on a stream limited to 2 fails on col 3"
 
-tests = sequence [t1, t2, t3, t4, t5, t6, t7, return t8] >>= mapM_ putStrLn
+tests = sequence [t1, t2, t3, t4, t5, t6, t7, return t8, return t9]
+  >>= mapM_ putStrLn
