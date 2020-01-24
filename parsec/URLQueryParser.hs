@@ -1,12 +1,13 @@
 module URLQueryParser where
 
+import LimitedStream
 import Numeric (readHex)
 import Text.ParserCombinators.Parsec
 
 query1 = query <* eof
-query :: CharParser st [(String, Maybe String)]
+query :: LimitCharParser st [(String, Maybe String)]
 query = sepBy fieldValue (char '&')
-fieldValue :: CharParser st (String, Maybe String)
+fieldValue :: LimitCharParser st (String, Maybe String)
 fieldValue = (,) <$> field <*> optionMaybe (char '=' *> value)
 
 urlChar =
@@ -28,5 +29,5 @@ hexChar    = char '%' *>
 field = many urlChar
 value = many urlChar
 
--- λ> parse query "" "field1=value1+2+%21&field2=value2%22&field3"
+-- λ> parse query "" $ UnlimitedStream "field1=value1+2+%21&field2=value2%22&field3"
 -- Right [("field1",Just "value1 2 !"),("field2",Just "value2\""),("field3",Nothing)]

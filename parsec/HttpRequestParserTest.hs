@@ -1,10 +1,11 @@
 import Control.Exception (assert)
 import Data.Either (fromLeft, isLeft)
 import HttpRequestParser
+import LimitedStream
 import Text.ParserCombinators.Parsec
 
-r1 = parseFromFile httpRequestP "1.http"
-r2 = parseFromFile httpRequestP "2.http"
+r1 = parseLimitedFromFile httpRequestP "1.http"
+r2 = parseLimitedFromFile httpRequestP "2.http"
 
 eitherError = either (error "Not Right")
 
