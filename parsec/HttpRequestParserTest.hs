@@ -33,5 +33,13 @@ t9 = assert
       $ UnlimitedStream "abc"))
      "Parsing 'a' *> 'b' *> 'c' on a stream limited to 2 fails on col 3"
 
-tests = sequence [t1, t2, t3, t4, t5, t6, t7, return t8, return t9]
+t10 = assertLineCol
+      <$> errorPos . fromLeft undefined
+      .   parse httpRequestP "" . UnlimitedStream
+      .   (++ cycle "abc") <$> readFile "2.http"
+      where assertLineCol pos =
+              assert (sourceColumn pos == 4097 && sourceLine pos == 2)
+                     "Parsing an \"exploded\" header fails where expected"
+
+tests = sequence [t1, t2, t3, t4, t5, t6, t7, return t8, return t9, t10]
   >>= mapM_ putStrLn
