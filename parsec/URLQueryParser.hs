@@ -2,7 +2,8 @@ module URLQueryParser where
 
 import LimitedStream
 import Numeric (readHex)
-import Text.ParserCombinators.Parsec
+import Text.Parsec.Prim (ParsecT, Stream, try)
+import Text.ParserCombinators.Parsec hiding (try)
 
 query1 = query <* eof
 query :: LimitCharParser st [(String, Maybe String)]
