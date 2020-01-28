@@ -8,6 +8,7 @@ r1 = parseLimitedFromFile httpRequestP "1.http"
 r2 = parseLimitedFromFile httpRequestP "2.http"
 
 eitherError = either (error "Not Right")
+fromRightOrError = eitherError id
 
 t1 = assert . (== GET) . eitherError method <$> r1 <*> pure "r1 is GET"
 t2 = assert . (== GET) . eitherError method <$> r2 <*> pure "r2 is GET"
@@ -41,5 +42,15 @@ t10 = assertLineCol
               assert (sourceColumn pos == 4097 && sourceLine pos == 2)
                      "Parsing an \"exploded\" header fails where expected"
 
-tests = sequence [t1, t2, t3, t4, t5, t6, t7, return t8, return t9, t10]
+cb1 = fromRightOrError
+  $ parse chunkedBody  "" "3;f\r\n123\r\n0\r\na: b\r\n\r\n"
+t11 = assert (
+     [("a", "b")]                == bodyTrailer   cb1
+  && [([("f", Nothing)], "123")] == bodyChunks    cb1
+  && []                          == bodyLastChunk cb1)
+  "Chunked body 1 is correct"
+tests = sequence
+  [t1, t2, t3, t4, t5,
+   t6, t7, return t8, return t9, t10,
+   return t11]
   >>= mapM_ putStrLn
