@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
-module URI where
+module URIParser where
 
 import Data.List (intercalate)
 import Numeric (readHex)
@@ -29,26 +29,68 @@ unreserved = alphaNum <|> mark
 mark = oneOf "-_.!~*'()"
 
 -- https://tools.ietf.org/html/rfc2396#section-3
-absoluteUri, hierPart, opaquePart, netPath, absPath ::
-  Stream s m Char => ParsecT s u m String
+type Scheme = String
+data HierarchicalNetURI = HierarchicalNetURI {
+  hnScheme    :: Scheme,
+  hnAuthority :: String,
+  hnPath      :: Maybe String,
+  hnQuery     :: Maybe Query
+  } deriving Show
+
+data HierarchicalAbsURI = HierarchicalAbsURI {
+  haScheme :: String,
+  haPath   :: String,
+  haQuery  :: Maybe Query
+  } deriving Show
+
+data OpaqueURI = OpaqueURI {
+  oScheme :: String,
+  oPath   :: String
+  } deriving Show
+
+data URI =
+    HNURI HierarchicalNetURI
+  | HAURI HierarchicalAbsURI
+  | OURI  OpaqueURI deriving Show
+
+type Query = String
+
+hierarchicalNetURI _ f (HNURI u) = f u
+hierarchicalNetURI d _ _         = d
+hierarchicalAbsURI _ f (HAURI u) = f u
+hierarchicalAbsURI d _ _         = d
+opaqueURI          _ f (OURI u)  = f u
+opaqueURI          d _ _         = d
+
+absoluteUri :: Stream s m Char => ParsecT s u m URI
 absoluteUri = do
   s <- scheme
   char ':'
   p <- hierPart <|> opaquePart
-  return $ s ++ [':'] ++ p
+  return $ p s
 
-hierPart = (++) <$> (netPath <|> absPath) <*> qquery
-  where qquery = option "" $ (:) <$> char '?' <*> query
+hierPart, opaquePart :: Stream s m Char => ParsecT s u m (Scheme -> URI)
+hierPart = (try netPath' <|> absPath') <*> qquery
+  where qquery   = optionMaybe $ char '?' *> query
+        netPath' = do
+          (a, p) <- netPath
+          return $ \q s -> HNURI $ HierarchicalNetURI s a p q
+        absPath' = do
+          p <- absPath
+          return $ \q s -> HAURI $ HierarchicalAbsURI s p q
 
+netPath :: Stream s m Char => ParsecT s u m (String, Maybe String)
 netPath = do
   string "//"
   a <- authority
-  p <- option "" absPath
-  return $ "//" ++ a ++ p
-
+  p <- optionMaybe absPath
+  return (a, p)
+absPath :: Stream s m Char => ParsecT s u m String
 absPath = (:) <$> char '/' <*> pathSegments
 
-opaquePart  = (:) <$> uricNoSlash <*> many uric
+opaquePart  = do
+  p <- ((:) <$> uricNoSlash <*> many uric)
+  return $ \s -> OURI (OpaqueURI s p)
 uricNoSlash :: Stream s m Char => ParsecT s u m Char
 uricNoSlash = unreserved <|> escaped <|> oneOf ";?:@&=+$,"
 
