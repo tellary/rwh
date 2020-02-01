@@ -60,23 +60,9 @@ token = many1 $ satisfy $ not . (`elem` (ctlChars ++ separatorChars))
 separatorChars = "()<>@,;:\\\"/[]?={} \t"
 
 text0 :: Stream s m Char => [Char] -> ParsecT s u m String
-text0 exceptChars = do
-  l0 <- try (True <$ many1 lws) <|> return False
-  if l0
-    then startLws
-    else startText
+text0 exceptChars =
+  many1 $ try (' ' <$ many1 lws) <|> exceptCharP
   where exceptCharP = satisfy (not . (`elem` exceptChars))
-        startLws    = do
-          mt <- try (Just <$> many1 exceptCharP) <|> return Nothing
-          case mt of
-            Just t  -> (" " ++) . (t ++) <$> cont
-            Nothing -> return " "
-        startText   = (++) <$> many1 exceptCharP <*> cont
-        cont        = do
-          l <- try (True <$ many1 lws) <|> return False
-          if l
-            then (" " ++) <$> cont
-            else return ""
 
 quotedString :: Stream s m Char => ParsecT s u m String
 quotedString = do

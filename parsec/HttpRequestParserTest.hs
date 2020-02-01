@@ -120,8 +120,9 @@ t12 = return $ fromRightOrError
     <$> parse (list1 token) "" "  a,b , c, d"
     <*> pure "Parse list of tokens"
 
--- tParseTextCrlf = return $ fromRightOrError
---   $ assert . (== "abc def") <$> parse text "" "abc\r\n def\r\n" <*> "parse text followed by crlf
+tParseTextCrlf = return $ fromRightOrError
+  $ assert . (== "abc def")
+    <$> parse text "" "abc\r\n def\r\n" <*> pure "parse text followed by crlf"
 
 tests = (do
   tms <- tMethods
@@ -130,6 +131,6 @@ tests = (do
   tps <- tPaths
   tqs <- tQueries
   ts  <- sequence [tr4IsLeft, tr3ContentLength, tr1Headers,
-                   t6, t8, t9, t10, t11, t12]
+                   t6, t8, t9, t10, t11, t12, tParseTextCrlf]
   return $ tms ++ tss ++ tas ++ tps ++ tqs ++ ts)
   >>= mapM_ putStrLn
