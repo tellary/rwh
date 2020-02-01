@@ -119,19 +119,15 @@ value     = token <|> quotedString
 -- https://tools.ietf.org/html/rfc2616#section-3.6.1
 type ChunkExt    = [(String, Maybe String)]
 type Chunk       = (ChunkExt, String)
-data ChunkedBody = ChunkedBody {
-  cbTrailer   :: Headers,
-  cbChunks    :: [Chunk],
-  cbLastChunk :: ChunkExt
-  }
 
-chunkedBody :: Stream s m Char => ParsecT s u m ChunkedBody
+chunkedBody :: Stream s m Char => ParsecT s u m MessageBody
 chunkedBody = do
   cs <- many chunk
   l  <- lastChunk
   t  <- trailer
   crlf
   return $ ChunkedBody t cs l
+
 chunk :: Stream s m Char => ParsecT s u m Chunk
 chunk = do
   s <- chunkSize
@@ -140,20 +136,26 @@ chunk = do
   d <- chunkData s
   crlf
   return (e, d)
+
 chunkSize :: (Eq a, Num a, Stream s m Char) => ParsecT s u m a
 chunkSize = nonZeroHexNumber
+
 chunkExtension :: Stream s m Char => ParsecT s u m ChunkExt
 chunkExtension =
   many (char ';' *>
          ((,) <$> chunkExtName
               <*> optionMaybe (char '=' *> chunkExtVal)))
+
 chunkExtName :: Stream s m Char => ParsecT s u m String
 chunkExtName = token
+
 chunkExtVal :: Stream s m Char => ParsecT s u m String
 chunkExtVal = token <|> quotedString
 chunkData l = try (count l anyChar) <?> printf "%i characters of data" l
+
 lastChunk :: Stream s m Char => ParsecT s u m ChunkExt
 lastChunk = char '0' *> chunkExtension <* crlf
+
 trailer :: Stream s m Char => ParsecT s u m Headers
 trailer = many (entityHeader <* crlf)
 
@@ -175,8 +177,26 @@ fieldContent = spaced text
 
 -- https://tools.ietf.org/html/rfc2616#section-4.3
 -- TODO support chunked transfer encoding
-messageBody :: Stream s m Char => Headers -> ParsecT s u m String
-messageBody hs = maybe (entityBody 0) entityBody $ headersContentLength hs
+data MessageBody =
+    ChunkedBody Headers [Chunk] ChunkExt
+  | EntityBody String
+  deriving (Eq, Show)
+
+cbTrailer   :: MessageBody -> Headers
+cbTrailer   (ChunkedBody hs _  _) = hs
+cbTrailer   _                     = []
+cbChunks    :: MessageBody -> [Chunk]
+cbChunks    (ChunkedBody _  cs _) = cs
+cbChunks    _                = []
+cbLastChunk :: MessageBody -> ChunkExt
+cbLastChunk (ChunkedBody _  _  e) = e
+cbLastChunk _                     = []
+
+messageBody :: Stream s m Char => Headers -> ParsecT s u m MessageBody
+messageBody hs =
+  if headersTransferEncodingChunked hs
+  then chunkedBody
+  else maybe (entityBody 0) entityBody $ headersContentLength hs
 
 -- https://tools.ietf.org/html/rfc2616#section-4.5
 -- TODO: Add other general headers
@@ -189,7 +209,7 @@ data HttpRequest = HttpRequest {
   hrUri     :: RequestURI,
   hrVersion :: (Int, Int),
   hrHeaders :: Headers,
-  hrBody    :: String
+  hrBody    :: MessageBody
   } deriving (Eq, Show)
 
 hrHierarchicalNetUri :: HttpRequest -> Maybe URI
@@ -222,7 +242,7 @@ request = do
 
 -- https://tools.ietf.org/html/rfc2616#section-5.1
 requestLine :: Stream s m Char =>
-  ParsecT s u m (Headers -> String -> HttpRequest)
+  ParsecT s u m (Headers -> MessageBody -> HttpRequest)
 requestLine = do
   m <- method
   sp
@@ -280,9 +300,9 @@ extensionHeader :: Stream s m Char => ParsecT s u m Header
 extensionHeader = messageHeader
 
 -- https://tools.ietf.org/html/rfc2616#section-7.2
-entityBody :: Stream s m Char => Int -> ParsecT s u m String
+entityBody :: Stream s m Char => Int -> ParsecT s u m MessageBody
 entityBody l =
-      count l anyChar
+      EntityBody <$> count l anyChar
   <?> printf "%i characters in HTTP body" l
 
 -- https://tools.ietf.org/html/rfc2616#section-14.13
@@ -297,9 +317,17 @@ headersContentLength (ContentLength l:_) = Just l
 headersContentLength (_:t) = headersContentLength t
 
 -- https://tools.ietf.org/html/rfc2616#section-14.41
-transferEncodingName = "Transfer-Encoding"
 transferEncoding :: Stream s m Char => ParsecT s u m Header
 transferEncoding = do
-  string transferEncodingName *> char ':'
+  string "Transfer-Encoding" *> char ':'
   c <- list1 transferCoding
   return $ TransferEncoding c
+
+headersTransferEncodingChunked []                                 = False
+headersTransferEncodingChunked ((TransferEncoding []):hs) =
+  headersTransferEncodingChunked hs
+headersTransferEncodingChunked ((TransferEncoding (Chunked:_)):_) = True
+headersTransferEncodingChunked ((TransferEncoding (_:ts)):hs) =
+  headersTransferEncodingChunked ((TransferEncoding ts):hs)
+headersTransferEncodingChunked (_:hs) =
+  headersTransferEncodingChunked hs
