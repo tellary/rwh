@@ -1,12 +1,12 @@
 {-# LANGUAGE FlexibleContexts #-}
 module HttpRequestParser where
 
-import LimitedStream (limit)
+import LimitedStream (LimitCharParser, limit)
 import Numeric (readHex)
 import Text.Parsec.Prim (ParsecT, Stream, parserZero, try)
 import Text.ParserCombinators.Parsec hiding (token, try)
 import Text.Printf (printf)
-import URIParser (URI, absoluteUri, absPath, authority)
+import URIParser
 
 -- Helper functions and parsers
 linearSpace :: Stream s m Char => ParsecT s u m ()
@@ -105,7 +105,7 @@ httpVersion = string "HTTP/" *> v
 data TransferCoding =
     Chunked
   | TransferExtension String
-  deriving Show
+  deriving (Eq, Show)
 
 transferCoding :: Stream s m Char => ParsecT s u m TransferCoding
 transferCoding =
@@ -134,9 +134,9 @@ value     = token <|> quotedString
 type ChunkExt    = [(String, Maybe String)]
 type Chunk       = (ChunkExt, String)
 data ChunkedBody = ChunkedBody {
-  bodyTrailer   :: Headers,
-  bodyChunks    :: [Chunk],
-  bodyLastChunk :: ChunkExt
+  cbTrailer   :: Headers,
+  cbChunks    :: [Chunk],
+  cbLastChunk :: ChunkExt
   }
 
 chunkedBody :: Stream s m Char => ParsecT s u m ChunkedBody
@@ -190,7 +190,7 @@ fieldContent = spaced text
 -- https://tools.ietf.org/html/rfc2616#section-4.3
 -- TODO support chunked transfer encoding
 messageBody :: Stream s m Char => Headers -> ParsecT s u m String
-messageBody hs = maybe (entityBody 0) entityBody $ getContentLength hs
+messageBody hs = maybe (entityBody 0) entityBody $ headersContentLength hs
 
 -- https://tools.ietf.org/html/rfc2616#section-4.5
 -- TODO: Add other general headers
@@ -204,12 +204,29 @@ data HttpRequest = HttpRequest {
   hrVersion :: (Int, Int),
   hrHeaders :: Headers,
   hrBody    :: String
-  } deriving Show
+  } deriving (Eq, Show)
 
-request :: Stream s m Char => ParsecT s u m HttpRequest
+hrHierarchicalNetUri :: HttpRequest -> Maybe URI
+hrHierarchicalNetUri r = case hrUri r of
+  AbsoluteRequestURI u -> Just u
+  _                    -> Nothing
+
+hrScheme r = uriScheme <$> hrHierarchicalNetUri r
+
+hrAuthority r = uriAuthority =<< hrHierarchicalNetUri r
+
+hrPath :: HttpRequest -> Maybe AbsPath
+hrPath r = case hrUri r of
+  AbsPathRequestURI s -> Just s
+  _                   -> hrHierarchicalNetUri r >>= uriPath
+
+hrQuery r = uriQuery =<< hrHierarchicalNetUri r
+
+request :: LimitCharParser st HttpRequest
 request = do
   r  <- requestLine
-  hs <- many
+  hs <- limit 4096
+        $ many
         $ (try generalHeader <|> try requestHeader <|> entityHeader)
           <* crlf
   crlf
@@ -248,7 +265,7 @@ data RequestURI =
   | AbsoluteRequestURI  URI
   | AbsPathRequestURI   String
   | AuthorityRequestURI String
-  deriving Show
+  deriving (Eq, Show)
 
 requestUri :: Stream s m Char => ParsecT s u m RequestURI
 requestUri = choice [
@@ -263,7 +280,7 @@ data Header =
     -- Entity headers
   | ContentLength Int
   | ExtensionHeader String (Maybe String)
-  deriving Show
+  deriving (Eq, Show)
 type Headers = [Header]
 
 -- https://tools.ietf.org/html/rfc2616#section-7.1
@@ -289,9 +306,9 @@ contentLength = do
   ds <- spaced $ many1 digit
   return . ContentLength . read $ ds
 
-getContentLength [] = Nothing
-getContentLength (ContentLength l:_) = Just l
-getContentLength (_:t) = getContentLength t
+headersContentLength [] = Nothing
+headersContentLength (ContentLength l:_) = Just l
+headersContentLength (_:t) = headersContentLength t
 
 -- https://tools.ietf.org/html/rfc2616#section-14.41
 transferEncodingName = "Transfer-Encoding"

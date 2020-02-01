@@ -29,38 +29,31 @@ unreserved = alphaNum <|> mark
 mark = oneOf "-_.!~*'()"
 
 -- https://tools.ietf.org/html/rfc2396#section-3
-type Scheme = String
-data HierarchicalNetURI = HierarchicalNetURI {
-  hnScheme    :: Scheme,
-  hnAuthority :: String,
-  hnPath      :: Maybe String,
-  hnQuery     :: Maybe Query
-  } deriving Show
-
-data HierarchicalAbsURI = HierarchicalAbsURI {
-  haScheme :: String,
-  haPath   :: String,
-  haQuery  :: Maybe Query
-  } deriving Show
-
-data OpaqueURI = OpaqueURI {
-  oScheme :: String,
-  oPath   :: String
-  } deriving Show
+type Authority = String
+type AbsPath   = String
+type Scheme    = String
+type Query     = String
 
 data URI =
-    HNURI HierarchicalNetURI
-  | HAURI HierarchicalAbsURI
-  | OURI  OpaqueURI deriving Show
+    HierarchicalNetURI Scheme Authority (Maybe AbsPath) (Maybe Query)
+  | HierarchicalAbsURI Scheme AbsPath (Maybe Query)
+  | OpaqueURI Scheme String
+  deriving (Eq, Show)
 
-type Query = String
+uriScheme (HierarchicalNetURI s _ _ _) = s
+uriScheme (HierarchicalAbsURI s _   _) = s
+uriScheme (OpaqueURI          s _)     = s
 
-hierarchicalNetURI _ f (HNURI u) = f u
-hierarchicalNetURI d _ _         = d
-hierarchicalAbsURI _ f (HAURI u) = f u
-hierarchicalAbsURI d _ _         = d
-opaqueURI          _ f (OURI u)  = f u
-opaqueURI          d _ _         = d
+uriAuthority (HierarchicalNetURI _ a _ _) = Just a
+uriAuthority _                            = Nothing
+
+uriPath (HierarchicalNetURI _ _ p _) =      p
+uriPath (HierarchicalAbsURI _   p _) = Just p
+uriPath _                            = Nothing
+
+uriQuery (HierarchicalNetURI _ _ _ q) = q
+uriQuery (HierarchicalAbsURI _   _ q) = q
+uriQuery _                            = Nothing
 
 absoluteUri :: Stream s m Char => ParsecT s u m URI
 absoluteUri = do
@@ -74,23 +67,23 @@ hierPart = (try netPath' <|> absPath') <*> qquery
   where qquery   = optionMaybe $ char '?' *> query
         netPath' = do
           (a, p) <- netPath
-          return $ \q s -> HNURI $ HierarchicalNetURI s a p q
+          return $ \q s -> HierarchicalNetURI s a p q
         absPath' = do
           p <- absPath
-          return $ \q s -> HAURI $ HierarchicalAbsURI s p q
+          return $ \q s -> HierarchicalAbsURI s p q
 
-netPath :: Stream s m Char => ParsecT s u m (String, Maybe String)
+netPath :: Stream s m Char => ParsecT s u m (String, Maybe AbsPath)
 netPath = do
   string "//"
   a <- authority
   p <- optionMaybe absPath
   return (a, p)
-absPath :: Stream s m Char => ParsecT s u m String
+absPath :: Stream s m Char => ParsecT s u m AbsPath
 absPath = (:) <$> char '/' <*> pathSegments
 
 opaquePart  = do
   p <- ((:) <$> uricNoSlash <*> many uric)
-  return $ \s -> OURI (OpaqueURI s p)
+  return $ \s -> OpaqueURI s p
 uricNoSlash :: Stream s m Char => ParsecT s u m Char
 uricNoSlash = unreserved <|> escaped <|> oneOf ";?:@&=+$,"
 
@@ -99,7 +92,7 @@ scheme :: Stream s m Char => ParsecT s u m String
 scheme = (:) <$> alpha <*> many (alpha <|> digit <|> oneOf "+-.")
 
 -- https://tools.ietf.org/html/rfc2396#section-3.2
-authority :: Stream s m Char => ParsecT s u m String
+authority :: Stream s m Char => ParsecT s u m Authority
 authority = server <|> regName
 
 -- https://tools.ietf.org/html/rfc2396#section-3.2.1
