@@ -8,18 +8,26 @@ supplyTimesSupply = do
   return (s1 * s2)
 
 main = hspec $ do
-  describe "ListSupply" $ do
-    it "multiplies two supplies correctly" $ do
-      runListSupply supplyTimesSupply [2, 3, 4]
-        `shouldBe` (Just (6, [4]) :: Maybe (Int, [Int]))
-    it "returns Nothing when list is consumed" $ do
-      runListSupply supplyTimesSupply ([2] :: [Int])
-        `shouldBe` (Nothing :: Maybe (Int, [Int]))
+  supplySpec
+    "IntList"
+    (runListSupply :: ListSupply Int Int
+                   -> [Int] -> Maybe (Int, [Int]))
 
-  describe "ListStateSupply" $ do
+  supplySpec
+    "DoubleList"
+    (runListSupply :: ListSupply Double Double
+                   -> [Double] -> Maybe (Double, [Double]))
+
+  supplySpec
+    "IntListState"
+    (runListStateSupply :: ListStateSupply Int Int
+                   -> [Int] -> Maybe (Int, [Int]))
+
+supplySpec name run = do
+  describe (name ++ "Supply") $ do
     it "multiplies two supplies correctly" $ do
-      runListStateSupply supplyTimesSupply [2, 3, 4]
-        `shouldBe` (Just (6, [4]) :: Maybe (Int, [Int]))
+      run supplyTimesSupply [2, 3, 4]
+        `shouldBe` Just (6, [4])
     it "returns Nothing when list is consumed" $ do
-      runListStateSupply supplyTimesSupply ([2] :: [Int])
-        `shouldBe` (Nothing :: Maybe (Int, [Int]))
+      run supplyTimesSupply [2]
+        `shouldBe` Nothing
