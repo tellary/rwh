@@ -25,9 +25,14 @@ main = hspec $ do
 
 supplySpec name run = do
   describe (name ++ "Supply") $ do
-    it "multiplies two supplies correctly" $ do
+    it "multiplies two supplies correctly" $
       run supplyTimesSupply [2, 3, 4]
         `shouldBe` Just (6, [4])
-    it "returns Nothing when list is consumed" $ do
+    it "returns Nothing when list has not enough elements" $
       run supplyTimesSupply [2]
         `shouldBe` Nothing
+    it "has different result multiplying two random supplies second time" $ do
+        Just v1 <- fmap fst . run supplyTimesSupply <$> randomsIO
+        Just v2 <- fmap fst . run supplyTimesSupply <$> randomsIO
+        return (v1 == v2)
+      `shouldReturn` False

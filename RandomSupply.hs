@@ -4,9 +4,11 @@
 
 module RandomSupply where
 
+import Control.Arrow             (first)
 import Control.Monad             (ap)
 import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
 import Control.Monad.State       (State, get, put, runState)
+import System.Random
 
 class Monad m => MonadSupply s m where
   supply :: m s
@@ -48,3 +50,6 @@ instance MonadSupply s (ListStateSupply s) where
       [] -> return Nothing
       (x:xs) -> do put xs
                    return $ Just x
+
+randomsIO :: Random a => IO [a]
+randomsIO = getStdRandom $ first randoms . split
