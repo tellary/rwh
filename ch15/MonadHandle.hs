@@ -3,7 +3,7 @@
 
 module MonadHandle where
 
-import System.IO (Handle, IOMode)
+import System.IO (IOMode)
 
 class Monad m => MonadHandle h m | m -> h where
   hClose   :: h -> m ()
