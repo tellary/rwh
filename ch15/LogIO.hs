@@ -8,14 +8,17 @@ module LogIO
   , LogIOAction(..)
   , LogIOHandle(LogIOHandle)
   , execLogIO
+  , evalLogIO
   ) where
 
-import Control.Monad.Catch        ( MonadThrow
+import Control.Monad.Catch        ( MonadCatch(..)
+                                  , MonadThrow(..)
                                   , SomeException
-                                  , throwM
+                                  , fromException
                                   , toException )
 import Control.Monad.Writer       ( WriterT(WriterT)
-                                  , execWriterT )
+                                  , execWriterT
+                                  , runWriterT )
 import Control.Monad.Writer.Class ( MonadWriter(..) )
 import MonadHandle
 import System.IO                  ( IOMode(ReadMode) )
@@ -39,10 +42,20 @@ data LogIOAction
 logIO :: x -> LogIOAction -> LogIO x
 logIO x a = tell [a] >> return x
 
+execLogIO :: LogIO a -> Either SomeException [LogIOAction]
 execLogIO (L w) = execWriterT w
+evalLogIO :: LogIO a -> Either SomeException a
+evalLogIO (L w) = fmap fst . runWriterT $ w
 
 instance MonadThrow LogIO where
   throwM = L . WriterT . Left . toException
+
+instance MonadCatch LogIO where
+  catch l@(L w) f = case runWriterT w of
+    Right _ -> l
+    Left  e -> case fromException e of
+                 Just e' -> f e'
+                 Nothing -> error "fromException returns Nothing"
 
 instance MonadHandle LogIOHandle LogIO where
   hClose   h = logIO () $ Close h

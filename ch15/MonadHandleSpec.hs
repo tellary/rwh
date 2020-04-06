@@ -1,14 +1,16 @@
-import           Control.Exception (fromException)
-import           Control.Monad     (when)
-import           Data.Either       (fromRight)
+import           Control.Exception   (fromException)
+import           Control.Monad       (when)
+import           Control.Monad.Catch (handle)
+import           Data.Either         (fromRight)
 import           HandleIO
 import           LogIO
 import           MonadHandle
 import           System.Directory
-import           System.IO         (IOMode(..))
+import           System.IO           (IOMode(..))
 import qualified System.IO as S
-import           System.IO.Error   (ioeGetErrorType, illegalOperationErrorType)
-import           Test.Hspec hiding (runIO)
+import           System.IO.Error     ( ioeGetErrorType
+                                     , illegalOperationErrorType)
+import           Test.Hspec hiding   (runIO)
 
 writeHello :: MonadHandle h m => m ()
 writeHello = do
@@ -34,12 +36,20 @@ main = hspec $ do
       , Close (LogIOHandle "helloFile" WriteMode)
       ]
 
-    it "throws on hPutStr in a read-only handle" $
+    it "throws illegal operation on `hPutStr` on a read-only handle" $
       let e = either fromException undefined . execLogIO $ do
             f <- openFile "readOnly" ReadMode
             hPutStr f "something"
       in
         ioeGetErrorType <$> e `shouldBe` Just illegalOperationErrorType
+
+    it "catches illegal operation on a read-only handle" $
+      let errorType = handle (return . Just . ioeGetErrorType) (do
+            f <- openFile "readOnly" ReadMode
+            hPutStr f "something"
+            return Nothing)
+      in (fromRight undefined . evalLogIO $ errorType)
+         `shouldBe` Just illegalOperationErrorType
 
   describe "HandleIO" $ do
     it "writes correct file" $ withoutFile "helloFile" $ do
