@@ -3,12 +3,15 @@
 
 module HandleIO (HandleIO, runIO) where
 
+import           Control.Monad.Catch ( MonadCatch
+                                     , MonadMask
+                                     , MonadThrow(..))
 import           Control.Monad.Trans (MonadIO, liftIO)
 import           MonadHandle
 import qualified System.IO as S
 
 newtype HandleIO a = H { runIO :: IO a }
-  deriving (Functor, Applicative, Monad)
+  deriving (Functor, Applicative, Monad, MonadThrow, MonadCatch, MonadMask)
 
 instance MonadHandle S.Handle HandleIO where
   hClose     = H . S.hClose

@@ -3,9 +3,10 @@
 
 module MonadHandle where
 
-import System.IO (IOMode)
+import Control.Monad.Catch (MonadMask)
+import System.IO           (IOMode)
 
-class Monad m => MonadHandle h m | m -> h where
+class (Monad m, MonadMask m) => MonadHandle h m | m -> h where
   hClose   :: h -> m ()
   hPutStr  :: h -> String -> m ()
   openFile :: FilePath -> IOMode -> m h

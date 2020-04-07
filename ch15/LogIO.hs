@@ -11,11 +11,10 @@ module LogIO
   , evalLogIO
   ) where
 
-import Control.Monad.Catch        ( MonadCatch(..)
+import Control.Monad.Catch        ( MonadCatch
+                                  , MonadMask
                                   , MonadThrow(..)
-                                  , SomeException
-                                  , fromException
-                                  , toException )
+                                  , SomeException )
 import Control.Monad.Writer       ( WriterT(WriterT)
                                   , execWriterT
                                   , runWriterT )
@@ -26,7 +25,14 @@ import System.IO.Error            ( illegalOperationErrorType
                                   , mkIOError )
 
 newtype LogIO a = L (WriterT [LogIOAction] (Either SomeException) a)
-  deriving (Functor, Applicative, Monad, MonadWriter [LogIOAction])
+  deriving
+    ( Functor
+    , Applicative
+    , Monad
+    , MonadWriter [LogIOAction]
+    , MonadThrow
+    , MonadCatch
+    , MonadMask )
 
 data LogIOHandle = LogIOHandle {
   path :: FilePath,
@@ -46,16 +52,6 @@ execLogIO :: LogIO a -> Either SomeException [LogIOAction]
 execLogIO (L w) = execWriterT w
 evalLogIO :: LogIO a -> Either SomeException a
 evalLogIO (L w) = fmap fst . runWriterT $ w
-
-instance MonadThrow LogIO where
-  throwM = L . WriterT . Left . toException
-
-instance MonadCatch LogIO where
-  catch l@(L w) f = case runWriterT w of
-    Right _ -> l
-    Left  e -> case fromException e of
-                 Just e' -> f e'
-                 Nothing -> error "fromException returns Nothing"
 
 instance MonadHandle LogIOHandle LogIO where
   hClose   h = logIO () $ Close h

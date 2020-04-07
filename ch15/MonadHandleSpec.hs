@@ -1,6 +1,6 @@
 import           Control.Exception   (fromException)
 import           Control.Monad       (when)
-import           Control.Monad.Catch (handle)
+import           Control.Monad.Catch (bracket, handle)
 import           Data.Either         (fromRight)
 import           HandleIO
 import           LogIO
@@ -13,11 +13,12 @@ import           System.IO.Error     ( ioeGetErrorType
 import           Test.Hspec hiding   (runIO)
 
 writeHello :: MonadHandle h m => m ()
-writeHello = do
-  f <- openFile "helloFile" WriteMode
-  hPutStr f "Hello"
-  hPutStr f "\n"
-  hClose  f
+writeHello =
+  bracket
+  (openFile "helloFile" WriteMode)
+  hClose $ \f -> do
+    hPutStr f "Hello"
+    hPutStr f "\n"
 
 withoutFile :: FilePath -> IO () -> IO ()
 withoutFile f a = do
