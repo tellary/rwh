@@ -1,16 +1,17 @@
-import           Control.Exception   (fromException)
-import           Control.Monad       (when)
-import           Control.Monad.Catch (bracket, handle)
-import           Data.Either         (fromRight)
+import           Control.Exception      (fromException)
+import           Control.Monad          (when)
+import           Control.Monad.Catch    (bracket, handle)
+import           Control.Monad.IO.Class (MonadIO(..))
+import           Data.Either            (fromRight)
 import           HandleIO
 import           LogIO
 import           MonadHandle
 import           System.Directory
-import           System.IO           (IOMode(..))
+import           System.IO              (IOMode(..))
 import qualified System.IO as S
-import           System.IO.Error     ( ioeGetErrorType
-                                     , illegalOperationErrorType)
-import           Test.Hspec hiding   (runIO)
+import           System.IO.Error        ( ioeGetErrorType
+                                        , illegalOperationErrorType)
+import           Test.Hspec hiding      (runIO)
 
 writeHello :: MonadHandle h m => m ()
 writeHello =
@@ -19,6 +20,11 @@ writeHello =
   hClose $ \f -> do
     hPutStr f "Hello"
     hPutStr f "\n"
+
+writeHelloAndTidyUp :: (MonadIO m, MonadHandle h m) => m ()
+writeHelloAndTidyUp = do
+  writeHello
+  liftIO $ removeFile "helloFile"
 
 withoutFile :: FilePath -> IO () -> IO ()
 withoutFile f a = do
@@ -58,3 +64,8 @@ main = hspec $ do
         f <- S.openFile "helloFile" ReadMode
         S.hGetContents f
       `shouldReturn` "Hello\n"
+
+    it "removes file in `liftIO`" $ do
+        runIO writeHelloAndTidyUp
+        doesPathExist "helloFile"
+      `shouldReturn` False
