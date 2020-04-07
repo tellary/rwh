@@ -19,17 +19,18 @@ import Control.Monad.Writer       ( WriterT(WriterT)
                                   , execWriterT
                                   , runWriterT )
 import Control.Monad.Writer.Class ( MonadWriter(..) )
+import Data.DList                 (DList, singleton, toList)
 import MonadHandle
 import System.IO                  ( IOMode(ReadMode) )
 import System.IO.Error            ( illegalOperationErrorType
                                   , mkIOError )
 
-newtype LogIO a = L (WriterT [LogIOAction] (Either SomeException) a)
+newtype LogIO a = L (WriterT (DList LogIOAction) (Either SomeException) a)
   deriving
     ( Functor
     , Applicative
     , Monad
-    , MonadWriter [LogIOAction]
+    , MonadWriter (DList LogIOAction)
     , MonadThrow
     , MonadCatch
     , MonadMask )
@@ -46,10 +47,10 @@ data LogIOAction
   deriving (Eq, Show)
 
 logIO :: x -> LogIOAction -> LogIO x
-logIO x a = tell [a] >> return x
+logIO x a = tell (singleton a) >> return x
 
 execLogIO :: LogIO a -> Either SomeException [LogIOAction]
-execLogIO (L w) = execWriterT w
+execLogIO (L w) = toList <$> execWriterT w
 evalLogIO :: LogIO a -> Either SomeException a
 evalLogIO (L w) = fmap fst . runWriterT $ w
 
