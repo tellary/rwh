@@ -38,9 +38,9 @@ main = hspec $ do
     it "produces correct log" $
       fromRight undefined (execLogIO writeHello) `shouldBe`
       [ Open  "helloFile" WriteMode
-      , Put   (LogIOHandle "helloFile" WriteMode) "Hello"
-      , Put   (LogIOHandle "helloFile" WriteMode) "\n"
-      , Close (LogIOHandle "helloFile" WriteMode)
+      , Put   "helloFile" "Hello"
+      , Put   "helloFile" "\n"
+      , Close "helloFile"
       ]
 
     it "throws illegal operation on `hPutStr` on a read-only handle" $
@@ -51,12 +51,25 @@ main = hspec $ do
         ioeGetErrorType <$> e `shouldBe` Just illegalOperationErrorType
 
     it "catches illegal operation on a read-only handle" $
-      let errorType = handle (return . Just . ioeGetErrorType) (do
+      let errM    = handle return (do
             f <- openFile "readOnly" ReadMode
             hPutStr f "something"
-            return Nothing)
-      in (fromRight undefined . evalLogIO $ errorType)
-         `shouldBe` Just illegalOperationErrorType
+            return $ userError "shouldn't happen")
+          err     = (fromRight undefined . evalLogIO $ errM)
+      in show err
+         `shouldBe`
+         "readOnly: hPutStr: illegal operation (handle is in read mode)"
+
+    it "catches illegal operation on a closed handle" $
+      let errM    = handle return (do
+            f <- openFile "writeFile" WriteMode
+            hClose  f
+            hPutStr f "something"
+            return $ userError "shouldn't happen")
+          err     = (fromRight undefined . evalLogIO $ errM)
+      in show err
+         `shouldBe`
+         "writeFile: hPutStr: illegal operation (handle is closed)"
 
   describe "HandleIO" $ do
     it "writes correct file" $ withoutFile "helloFile" $ do

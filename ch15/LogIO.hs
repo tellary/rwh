@@ -11,54 +11,73 @@ module LogIO
   , evalLogIO
   ) where
 
-import Control.Monad.Catch        ( MonadCatch
-                                  , MonadMask
-                                  , MonadThrow(..)
-                                  , SomeException )
-import Control.Monad.Writer       ( WriterT(WriterT)
-                                  , execWriterT
-                                  , runWriterT )
-import Control.Monad.Writer.Class ( MonadWriter(..) )
-import Data.DList                 (DList, singleton, toList)
-import MonadHandle
-import System.IO                  ( IOMode(ReadMode) )
-import System.IO.Error            ( illegalOperationErrorType
-                                  , mkIOError )
+import           Control.Monad.Catch        (MonadCatch, MonadMask,
+                                             MonadThrow (..), SomeException)
+import           Control.Monad.State        (MonadState, StateT, evalStateT,
+                                             gets, modify)
+import           Control.Monad.Writer       (WriterT (WriterT), execWriterT,
+                                             runWriterT)
+import           Control.Monad.Writer.Class (MonadWriter (..))
+import           Data.DList                 (DList, singleton, toList)
+import qualified Data.Map                   as M
+import           MonadHandle
+import           System.IO                  (IOMode (ReadMode))
+import           System.IO.Error            (illegalOperationErrorType,
+                                             ioeSetErrorString, mkIOError)
 
-newtype LogIO a = L (WriterT (DList LogIOAction) (Either SomeException) a)
+newtype LogIO a = L
+  (WriterT
+    (DList LogIOAction)
+    (StateT
+     (M.Map FilePath LogIOHandle)
+     (Either SomeException)
+    ) a)
   deriving
     ( Functor
     , Applicative
     , Monad
     , MonadWriter (DList LogIOAction)
+    , MonadState (M.Map FilePath LogIOHandle)
     , MonadThrow
     , MonadCatch
     , MonadMask )
 
 data LogIOHandle = LogIOHandle {
-  path :: FilePath,
-  mode :: IOMode
+  mode   :: IOMode
   } deriving (Eq, Show)
 
 data LogIOAction
-  = Open  FilePath    IOMode
-  | Put   LogIOHandle String
-  | Close LogIOHandle
+  = Open  FilePath IOMode
+  | Put   FilePath String
+  | Close FilePath
   deriving (Eq, Show)
 
-logIO :: x -> LogIOAction -> LogIO x
-logIO x a = tell (singleton a) >> return x
+logIO :: LogIOAction -> LogIO ()
+logIO a = tell (singleton a)
 
 execLogIO :: LogIO a -> Either SomeException [LogIOAction]
-execLogIO (L w) = toList <$> execWriterT w
+execLogIO (L w) = fmap toList . (`evalStateT` M.empty) . execWriterT $ w
 evalLogIO :: LogIO a -> Either SomeException a
-evalLogIO (L w) = fmap fst . runWriterT $ w
+evalLogIO (L w) = fmap fst . (`evalStateT` M.empty) . runWriterT $ w
 
-instance MonadHandle LogIOHandle LogIO where
-  hClose   h = logIO () $ Close h
-  hPutStr  h str
-    | mode h /= ReadMode = logIO () $ Put h str
-    | otherwise = throwM
-                  $ mkIOError illegalOperationErrorType p Nothing (Just p)
-                  where p = path h
-  openFile f mode = logIO (LogIOHandle f mode) $ Open f mode
+instance MonadHandle FilePath LogIO where
+  hClose   f = do
+    modify $ M.delete f
+    logIO $ Close f
+    return ()
+  hPutStr  f str = do
+    let n = "hPutStr"
+        e = mkIOError illegalOperationErrorType n Nothing (Just f)
+    hm <- gets $ M.lookup f
+    case hm of
+      Nothing -> throwM $ ioeSetErrorString e "handle is closed"
+      Just h
+        | mode h == ReadMode
+          -> throwM $ ioeSetErrorString e "handle is in read mode"
+        | otherwise
+          -> (logIO $ Put f str) >> return ()
+  openFile f mode = do
+    logIO $ Open f mode
+    modify $ M.insert f $ LogIOHandle mode
+    return f
+
