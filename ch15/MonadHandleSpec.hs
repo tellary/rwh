@@ -26,6 +26,13 @@ writeHelloAndTidyUp = do
   writeHello
   liftIO $ removeFile "helloFile"
 
+writeToClosedHandle :: MonadHandle h m => m IOError
+writeToClosedHandle = handle return $ do
+  f <- openFile "writeFile" WriteMode
+  hClose  f
+  hPutStr f "something"
+  return $ userError "shouldn't get to this statement"
+
 withoutFile :: FilePath -> IO () -> IO ()
 withoutFile f a = do
   exists <- doesPathExist f
@@ -43,14 +50,14 @@ main = hspec $ do
       , Close "helloFile"
       ]
 
-    it "throws illegal operation on `hPutStr` on a read-only handle" $
+    it "throws an illegal operation on `hPutStr` on a read-only handle" $
       let e = either fromException undefined . execLogIO $ do
             f <- openFile "readOnly" ReadMode
             hPutStr f "something"
       in
         ioeGetErrorType <$> e `shouldBe` Just illegalOperationErrorType
 
-    it "catches illegal operation on a read-only handle" $
+    it "catches an illegal operation on a read-only handle" $
       let errM    = handle return (do
             f <- openFile "readOnly" ReadMode
             hPutStr f "something"
@@ -60,13 +67,8 @@ main = hspec $ do
          `shouldBe`
          "readOnly: hPutStr: illegal operation (handle is in read mode)"
 
-    it "catches illegal operation on a closed handle" $
-      let errM    = handle return (do
-            f <- openFile "writeFile" WriteMode
-            hClose  f
-            hPutStr f "something"
-            return $ userError "shouldn't happen")
-          err     = (fromRight undefined . evalLogIO $ errM)
+    it "catches an illegal operation on a closed handle" $
+      let err = fromRight undefined . evalLogIO $ writeToClosedHandle
       in show err
          `shouldBe`
          "writeFile: hPutStr: illegal operation (handle is closed)"
@@ -82,3 +84,9 @@ main = hspec $ do
         runIO writeHelloAndTidyUp
         doesPathExist "helloFile"
       `shouldReturn` False
+
+    it "catches an illegal operation on a closed handle" $
+      let err = runIO $ writeToClosedHandle
+      in show <$> err
+         `shouldReturn`
+         "writeFile: hPutStr: illegal operation (handle is closed)"
