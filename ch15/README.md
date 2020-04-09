@@ -16,7 +16,7 @@ Exercises at the end of Chapter 15:
        a property against?
        
         Should I create an arbitrary instance to generate an open and a closed
-        `System.IO (Handle)`? This doesn't make sense to me and, see
+        `System.IO (Handle)`? This doesn't make sense to me, and see
         next item (2).
 
     2. The book doesn't explain how to write QuickCheck properties on monadic code.
