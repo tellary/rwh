@@ -11,10 +11,12 @@ module LogIO
   , evalLogIO
   ) where
 
+import           Control.Exception          (SomeException)
 import           Control.Monad.Catch        (MonadCatch, MonadMask,
-                                             MonadThrow (..), SomeException)
-import           Control.Monad.State        (MonadState, StateT, evalStateT,
-                                             gets, modify)
+                                             MonadThrow (..))
+import           Control.Monad.Catch.Pure   (CatchT, runCatchT)
+import           Control.Monad.State        (MonadState, State, evalState, gets,
+                                             modify)
 import           Control.Monad.Writer       (WriterT (WriterT), execWriterT,
                                              runWriterT)
 import           Control.Monad.Writer.Class (MonadWriter (..))
@@ -22,16 +24,17 @@ import           Data.DList                 (DList, singleton, toList)
 import qualified Data.Map                   as M
 import           MonadHandle
 import           System.IO                  (IOMode (ReadMode))
-import           System.IO.Error            (illegalOperationErrorType,
+import           System.IO.Error            (IOError, illegalOperationErrorType,
                                              ioeSetErrorString, mkIOError)
 
 newtype LogIO a = L
-  (WriterT
+  (CatchT
+   (WriterT
     (DList LogIOAction)
-    (StateT
-     (M.Map FilePath LogIOHandle)
-     (Either SomeException)
-    ) a)
+     (State
+      (M.Map FilePath LogIOHandle)
+     )
+   ) a)
   deriving
     ( Functor
     , Applicative
@@ -55,10 +58,10 @@ data LogIOAction
 logIO :: LogIOAction -> LogIO ()
 logIO a = tell (singleton a)
 
-execLogIO :: LogIO a -> Either SomeException [LogIOAction]
-execLogIO (L w) = fmap toList . (`evalStateT` M.empty) . execWriterT $ w
+execLogIO :: LogIO a -> [LogIOAction]
+execLogIO (L e) = toList . (`evalState` M.empty) . execWriterT . runCatchT $ e
 evalLogIO :: LogIO a -> Either SomeException a
-evalLogIO (L w) = fmap fst . (`evalStateT` M.empty) . runWriterT $ w
+evalLogIO (L e) = fst . (`evalState` M.empty) . runWriterT . runCatchT $ e
 
 instance MonadHandle FilePath LogIO where
   hClose   f = do
@@ -80,4 +83,3 @@ instance MonadHandle FilePath LogIO where
     logIO $ Open f mode
     modify $ M.insert f $ LogIOHandle mode
     return f
-

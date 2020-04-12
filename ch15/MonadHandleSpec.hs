@@ -1,4 +1,5 @@
-import           Control.Exception      (fromException)
+import           Control.Exception      (SomeException, fromException,
+                                         toException)
 import           Control.Monad          (when)
 import           Control.Monad.Catch    (bracket, handle)
 import           Control.Monad.IO.Class (MonadIO(..))
@@ -26,12 +27,16 @@ writeHelloAndTidyUp = do
   writeHello
   liftIO $ removeFile "helloFile"
 
-writeToClosedHandle :: MonadHandle h m => m IOError
-writeToClosedHandle = handle return $ do
-  f <- openFile "writeFile" WriteMode
-  hClose  f
+writeToReadOnlyHandle = do
+  f <- openFile "readOnly" ReadMode
   hPutStr f "something"
-  return $ userError "shouldn't get to this statement"
+
+writeToClosedHandle :: MonadHandle h m => m SomeException
+writeToClosedHandle = handle return $ do
+    f <- openFile "writeFile" WriteMode
+    hClose  f
+    hPutStr f "something"
+    return . toException . userError $ "shouldn't get to this statement"
 
 withoutFile :: FilePath -> IO () -> IO ()
 withoutFile f a = do
@@ -43,7 +48,7 @@ withoutFile f a = do
 main = hspec $ do
   describe "LogIO" $ do
     it "produces correct log" $
-      fromRight undefined (execLogIO writeHello) `shouldBe`
+      execLogIO writeHello `shouldBe`
       [ Open  "helloFile" WriteMode
       , Put   "helloFile" "Hello"
       , Put   "helloFile" "\n"
@@ -51,11 +56,14 @@ main = hspec $ do
       ]
 
     it "throws an illegal operation on `hPutStr` on a read-only handle" $
-      let e = either fromException undefined . execLogIO $ do
-            f <- openFile "readOnly" ReadMode
-            hPutStr f "something"
+      let e = either fromException undefined . evalLogIO
+            $ writeToReadOnlyHandle
       in
         ioeGetErrorType <$> e `shouldBe` Just illegalOperationErrorType
+
+    it "saves log before exception" $
+      execLogIO writeToReadOnlyHandle `shouldBe`
+      [ Open "readOnly" ReadMode ]
 
     it "catches an illegal operation on a read-only handle" $
       let errM    = handle return (do
@@ -85,8 +93,9 @@ main = hspec $ do
         doesPathExist "helloFile"
       `shouldReturn` False
 
-    it "catches an illegal operation on a closed handle" $
-      let err = runIO $ writeToClosedHandle
-      in show <$> err
-         `shouldReturn`
-         "writeFile: hPutStr: illegal operation (handle is closed)"
+    it "catches an illegal operation on a closed handle" $ do
+        err <- runIO $ writeToClosedHandle
+        removeFile "writeFile"
+        return . show $ err
+      `shouldReturn`
+      "writeFile: hPutStr: illegal operation (handle is closed)"
