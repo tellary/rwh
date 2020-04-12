@@ -17,14 +17,13 @@ import           Control.Monad.Catch        (MonadCatch, MonadMask,
 import           Control.Monad.Catch.Pure   (CatchT, runCatchT)
 import           Control.Monad.State        (MonadState, State, evalState, gets,
                                              modify)
-import           Control.Monad.Writer       (WriterT (WriterT), execWriterT,
-                                             runWriterT)
+import           Control.Monad.Writer       (WriterT, execWriterT, runWriterT)
 import           Control.Monad.Writer.Class (MonadWriter (..))
 import           Data.DList                 (DList, singleton, toList)
 import qualified Data.Map                   as M
 import           MonadHandle
 import           System.IO                  (IOMode (ReadMode))
-import           System.IO.Error            (IOError, illegalOperationErrorType,
+import           System.IO.Error            (illegalOperationErrorType,
                                              ioeSetErrorString, mkIOError)
 
 newtype LogIO a = L
