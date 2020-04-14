@@ -2,8 +2,8 @@
 
 module CountFoldersContent
   ( App
-  , AppConfig(..)
-  , AppState(..)
+  , AppConfig (..)
+  , AppState  (..)
   , runApp
   , runCountFoldersContent
   ) where
@@ -24,7 +24,7 @@ data AppConfig
 
 data AppState
   = AppState  { stMaxDepth  :: Int }
-  deriving Show
+  deriving (Eq, Show)
 
 newtype App a = A {
   unApp ::
@@ -47,7 +47,7 @@ newtype App a = A {
 
 countFoldersContent0 :: Int -> FilePath -> App ()
 countFoldersContent0 depth path = do
-  maxDepth        <- cfgMaxDepth <$> ask
+  maxDepth <- cfgMaxDepth <$> ask
   when (depth <= maxDepth) $ do
     visitedMaxDepth <- stMaxDepth  <$> get
     when (visitedMaxDepth < depth) $ put (AppState depth)
@@ -67,8 +67,4 @@ runApp cfg st = (`runStateT` st) . (`runReaderT` cfg) . execWriterT . unApp
 runCountFoldersContent maxDepth path
   = runApp (AppConfig maxDepth) (AppState 0) (countFoldersContent path)
 
--- λ> runCountFoldersContent 0 "/home/ilya"
--- (fromList [("/home/ilya",24)],AppState {stMaxDepth = 0})
--- λ> runCountFoldersContent 1 "/home/ilya"
--- (fromList [("/home/ilya",24),("/home/ilya/.aws",0),("/home/ilya/.cabal",2),("/home/ilya/.emacs.d",8),("/home/ilya/.ghc",1),("/home/ilya/.gnupg",7),("/home/ilya/.gradle",6),("/home/ilya/.oracle_jre_usage",1),("/home/ilya/.ssh",5),("/home/ilya/Desktop",3),("/home/ilya/Downloads",48),("/home/ilya/safeplace",21),("/home/ilya/shared",2),("/home/ilya/work",0)],AppState {stMaxDepth = 1})
 
