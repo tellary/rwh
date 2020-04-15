@@ -28,9 +28,10 @@ data AppState
 
 newtype App a = A {
   unApp ::
-      WriterT
-      ( M.Map FilePath Int )
-      ( ReaderT AppConfig
+      ReaderT AppConfig
+      (
+        WriterT
+        ( M.Map FilePath Int )
         ( StateT AppState IO )
       )
       a
@@ -62,7 +63,7 @@ countFoldersContent0 depth path = do
 
 countFoldersContent = countFoldersContent0 0
 
-runApp cfg st = (`runStateT` st) . (`runReaderT` cfg) . execWriterT . unApp
+runApp cfg st = (`runStateT` st) . execWriterT . (`runReaderT` cfg) . unApp
 
 runCountFoldersContent maxDepth path
   = runApp (AppConfig maxDepth) (AppState 0) (countFoldersContent path)
