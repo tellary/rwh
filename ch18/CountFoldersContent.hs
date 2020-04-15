@@ -14,8 +14,9 @@ import           Control.Monad.Reader   (MonadReader (ask), ReaderT, runReaderT)
 import           Control.Monad.State    (MonadState, StateT, get, put,
                                          runStateT)
 import           Control.Monad.Writer   (MonadWriter (tell), WriterT,
-                                         execWriterT)
+                                         runWriterT)
 import qualified Data.Map               as M
+import           Data.Tuple (swap)
 import           System.Directory       (doesDirectoryExist, listDirectory)
 
 data AppConfig
@@ -28,11 +29,11 @@ data AppState
 
 newtype App a = A {
   unApp ::
-      ReaderT AppConfig
+      StateT AppState
       (
         WriterT
-        ( M.Map FilePath Int )
-        ( StateT AppState IO )
+        ( M.Map FilePath Int   )
+        ( ReaderT AppConfig IO )
       )
       a
   }
@@ -63,7 +64,7 @@ countFoldersContent0 depth path = do
 
 countFoldersContent = countFoldersContent0 0
 
-runApp cfg st = (`runStateT` st) . execWriterT . (`runReaderT` cfg) . unApp
+runApp cfg st = fmap swap . (`runReaderT` cfg) . runWriterT . fmap snd . (`runStateT` st) . unApp
 
 runCountFoldersContent maxDepth path
   = runApp (AppConfig maxDepth) (AppState 0) (countFoldersContent path)
