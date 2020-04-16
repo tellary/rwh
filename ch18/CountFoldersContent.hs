@@ -12,7 +12,7 @@ import           Control.Monad          (filterM, when)
 import           Control.Monad.IO.Class (MonadIO (liftIO))
 import           Control.Monad.Reader   (MonadReader (ask), ReaderT, runReaderT)
 import           Control.Monad.State    (MonadState, StateT, get, put,
-                                         runStateT)
+                                         execStateT)
 import           Control.Monad.Writer   (MonadWriter (tell), WriterT,
                                          runWriterT)
 import qualified Data.Map               as M
@@ -64,7 +64,7 @@ countFoldersContent0 depth path = do
 
 countFoldersContent = countFoldersContent0 0
 
-runApp cfg st = fmap swap . (`runReaderT` cfg) . runWriterT . fmap snd . (`runStateT` st) . unApp
+runApp cfg st = fmap swap . (`runReaderT` cfg) . runWriterT . (`execStateT` st) . unApp
 
 runCountFoldersContent maxDepth path
   = runApp (AppConfig maxDepth) (AppState 0) (countFoldersContent path)
