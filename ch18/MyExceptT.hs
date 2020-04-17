@@ -1,7 +1,12 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances  #-}
-module MyExceptT (MyExcept, MyExceptT(..), runMyExcept) where
+module MyExceptT
+  ( MyExcept
+  , MyExceptT(..)
+  , mapMyExceptT
+  , runMyExcept
+  ) where
 
 import Control.Monad          (ap)
 import Control.Monad.Identity (Identity, runIdentity)
@@ -31,6 +36,12 @@ instance Monad m => Monad (MyExceptT e m) where
 instance MonadTrans (MyExceptT e) where
   lift m = MyExceptT $ m >>= \a -> return . Right $ a
 
+mapMyExceptT
+  :: (m (Either e1 a) -> n (Either e2 b))
+  -> MyExceptT e1 m a
+  -> MyExceptT e2 n b
+mapMyExceptT f = MyExceptT . f . runMyExceptT
+
 instance MonadReader r m => MonadReader r (MyExceptT e m) where
    ask     = lift ask
-   local f = MyExceptT . local f . runMyExceptT
+   local f = mapMyExceptT $ local f
