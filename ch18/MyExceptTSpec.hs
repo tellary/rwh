@@ -1,7 +1,8 @@
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-import Control.Monad.Reader (Reader, MonadReader(..), runReader)
+import Control.Monad.Reader (MonadReader (..), Reader, runReader)
+import Control.Monad.Writer (MonadWriter (..), Writer, runWriter)
 import MyExceptT
 import Test.Hspec
 
@@ -21,6 +22,19 @@ localDemo = do
           name <- ask
           return $ "Step " ++ show step  ++ ": Hello, " ++ name ++ "!"
 
+newtype MyExceptWriter w a = MEW (MyExceptT String (Writer w) a)
+  deriving (Functor, Applicative, Monad, MonadWriter w)
+
+runMyExceptWriter (MEW m) = runWriter . runMyExceptT $ m
+
+outputIfWriterIsEmpty :: MonadWriter String m => m a -> m a
+outputIfWriterIsEmpty m = pass $ do
+  a <- m
+  return (a, \out ->
+               if null out
+               then "empty"
+               else "non empty: " ++ out)
+
 main = hspec $ do
   describe "MyExcept" $ do
     it "binds (+1) correctly" $
@@ -37,3 +51,21 @@ main = hspec $ do
             , "Step 2: Hello, Peter the Great!"
             , "Step 3: Hello, Peter!"
             )
+
+  describe "MyExceptWriter" $ do
+    it "tells if writer is empty" $
+      (runMyExceptWriter . outputIfWriterIsEmpty . return $ 1)
+      `shouldBe` (Right 1, "empty")
+    it "tells if writer is not empty" $
+      (runMyExceptWriter . outputIfWriterIsEmpty $ tell "test" >> return 1)
+      `shouldBe` (Right 1, "non empty: test")
+    it "listens correctly" $
+      (runMyExceptWriter . listen $ tell "test" >> return 1)
+      `shouldBe` (Right (1, "test"), "test")
+    it "tells correctly" $
+      (runMyExceptWriter $ tell "test" >> return 1)
+      `shouldBe` (Right 1, "test")
+    it "handles left value in the chain" $
+      (runMyExceptWriter
+       $ tell "test" >> MEW (MyExceptT . return . Left $ "error") >> return 1)
+      `shouldBe` (Left "error", "test")

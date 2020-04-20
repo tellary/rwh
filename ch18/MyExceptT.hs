@@ -12,6 +12,7 @@ import Control.Monad          (ap)
 import Control.Monad.Identity (Identity, runIdentity)
 import Control.Monad.Reader   (MonadReader (ask, local))
 import Control.Monad.Trans    (MonadTrans (lift))
+import Control.Monad.Writer   (MonadWriter (listen, pass, tell))
 
 newtype MyExceptT e m a = MyExceptT { runMyExceptT :: m (Either e a) }
 
@@ -43,5 +44,19 @@ mapMyExceptT
 mapMyExceptT f = MyExceptT . f . runMyExceptT
 
 instance MonadReader r m => MonadReader r (MyExceptT e m) where
-   ask     = lift ask
-   local f = mapMyExceptT $ local f
+  ask     = lift ask
+  local f = mapMyExceptT $ local f
+
+extendEitherTuple
+  :: MonadWriter w m
+  => m (Either e a, w) -> m (Either e (a, w))
+extendEitherTuple = fmap (\(eth, w) -> fmap (, w) eth)
+
+instance MonadWriter w m => MonadWriter w (MyExceptT e m) where
+  tell   = lift . tell
+  listen = mapMyExceptT $ extendEitherTuple . listen
+  pass   = mapMyExceptT $ \m -> pass $ do
+    e <- m
+    return $ case e of
+      Right (a, f) -> (Right a, f)
+      Left  e      -> (Left  e, id)
