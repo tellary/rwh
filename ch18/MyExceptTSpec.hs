@@ -2,6 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 import Control.Monad.Reader (MonadReader (..), Reader, runReader)
+import Control.Monad.State  (MonadState (..), State, runState)
 import Control.Monad.Writer (MonadWriter (..), Writer, runWriter)
 import MyExceptT
 import Test.Hspec
@@ -34,6 +35,16 @@ outputIfWriterIsEmpty m = pass $ do
                if null out
                then "empty"
                else "non empty: " ++ out)
+
+newtype MyExceptState s a = MES (MyExceptT String (State s) a)
+  deriving (Functor, Applicative, Monad, MonadState s)
+
+runMyExceptState (MES m) s = (`runState` s) . runMyExceptT $ m
+
+doubleState :: MonadState Int m => m ()
+doubleState = do
+  v <- get
+  put (2*v)
 
 main = hspec $ do
   describe "MyExcept" $ do
@@ -69,3 +80,8 @@ main = hspec $ do
       (runMyExceptWriter
        $ tell "test" >> MEW (MyExceptT . return . Left $ "error") >> return 1)
       `shouldBe` (Left "error", "test")
+
+  describe "MyExceptState" $ do
+    it "doubles int state correctly" $
+      runMyExceptState doubleState 2
+      `shouldBe` (Right (), 4)

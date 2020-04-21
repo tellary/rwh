@@ -12,6 +12,7 @@ import Control.Monad          (ap)
 import Control.Monad.Identity (Identity, runIdentity)
 import Control.Monad.Reader   (MonadReader (ask, local))
 import Control.Monad.Trans    (MonadTrans (lift))
+import Control.Monad.State    (MonadState (get, put))
 import Control.Monad.Writer   (MonadWriter (listen, pass, tell))
 
 newtype MyExceptT e m a = MyExceptT { runMyExceptT :: m (Either e a) }
@@ -60,3 +61,7 @@ instance MonadWriter w m => MonadWriter w (MyExceptT e m) where
     return $ case e of
       Right (a, f) -> (Right a, f)
       Left  e      -> (Left  e, id)
+
+instance MonadState s m => MonadState s (MyExceptT e m) where
+  get = lift get
+  put = lift . put
