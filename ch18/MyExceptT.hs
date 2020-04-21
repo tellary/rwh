@@ -1,11 +1,15 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE UndecidableInstances  #-}
 module MyExceptT
   ( MyExcept
-  , MyExceptT(..)
+  , MyExceptT
   , mapMyExceptT
+  , myExceptT
+  , myThrowE
   , runMyExcept
+  , runMyExceptT
   ) where
 
 import Control.Monad          (ap)
@@ -20,6 +24,11 @@ newtype MyExceptT e m a = MyExceptT { runMyExceptT :: m (Either e a) }
 
 type MyExcept e = MyExceptT e Identity
 runMyExcept = runIdentity . runMyExceptT
+
+myExceptT = MyExceptT
+
+myThrowE :: Monad m => e -> MyExceptT e m a
+myThrowE = MyExceptT . return . Left
 
 instance Monad m => Functor (MyExceptT e m) where
   fmap f m = m >>= \a -> return $ f a

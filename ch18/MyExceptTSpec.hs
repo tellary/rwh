@@ -78,7 +78,7 @@ main = hspec $ do
       `shouldBe` (Right 1, "test")
     it "handles left value in the chain" $
       (runMyExceptWriter
-       $ tell "test" >> MEW (MyExceptT . return . Left $ "error") >> return 1)
+       $ tell "test" >> MEW (myThrowE "error") >> return 1)
       `shouldBe` (Left "error", "test")
 
   describe "MyExceptState" $ do
