@@ -10,6 +10,7 @@ module MyExceptT
 
 import Control.Monad          (ap)
 import Control.Monad.Identity (Identity, runIdentity)
+import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Reader   (MonadReader (ask, local))
 import Control.Monad.Trans    (MonadTrans (lift))
 import Control.Monad.State    (MonadState (get, put))
@@ -65,3 +66,6 @@ instance MonadWriter w m => MonadWriter w (MyExceptT e m) where
 instance MonadState s m => MonadState s (MyExceptT e m) where
   get = lift get
   put = lift . put
+
+instance MonadIO m => MonadIO (MyExceptT e m) where
+  liftIO = lift . liftIO
