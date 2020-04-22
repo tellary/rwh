@@ -1,14 +1,22 @@
 {-# LANGUAGE FlexibleInstances, FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module MyState where
+module MyState
+  ( MyMonadState(..)
+  , MyState
+  , MyStateT
+  , myRunState
+  , myRunStateT
+  ) where
 
 import Control.Monad          (ap)
-import Control.Monad.Identity (Identity)
+import Control.Monad.Identity (Identity, runIdentity)
 
-data MyStateT s m a = S { myRunState :: s -> m (a, s) }
+data MyStateT s m a = S { myRunStateT :: s -> m (a, s) }
 
 type MyState s = MyStateT s Identity
+
+myRunState = fmap runIdentity . myRunStateT
 
 class Monad m => MyMonadState s m | m -> s where
   get :: m s
@@ -26,8 +34,8 @@ instance Monad m => Applicative (MyStateT s m) where
 instance Monad m => Monad (MyStateT s m) where
   return a = S $ \s -> return (a, s)
   m >>= f = S $ \s -> do
-    (a, s') <- myRunState m s
-    myRunState (f a) s'
+    (a, s') <- myRunStateT m s
+    myRunStateT (f a) s'
 
 instance Monad m => MyMonadState s (MyStateT s m) where
   get   = S $ \s -> return (s , s)
