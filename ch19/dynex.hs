@@ -3,9 +3,9 @@ import Data.Dynamic
 
 data SqlError
   = SqlError
-  { seState :: String
+  { seState       :: String
   , seNativeError :: Int
-  , seErrorMsg :: String
+  , seErrorMsg    :: String
   } deriving (Eq, Show, Typeable)
 
 instance Exception SqlError
