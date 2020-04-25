@@ -51,6 +51,12 @@ main = hspec $ do
     it "binds (+1) correctly" $
       runMyExcept (return 1 >>= return . (+1))
       `shouldBe` (Right 2 :: Either String Int)
+    it "throws" $
+      runMyExcept (myThrowError 1)
+      `shouldBe` (Left 1 :: Either Int Int)
+    it "throws and catches" $
+      (runMyExcept $ myThrowError "err" `myCatchError` \e -> return $ "Caught: " ++ e)
+      `shouldBe` (Right "Caught: err" :: Either String String)
 
   describe "MyExceptReader" $ do
     it "returns `ask` correctly" $

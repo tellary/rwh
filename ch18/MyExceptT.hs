@@ -1,10 +1,13 @@
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TupleSections         #-}
-{-# LANGUAGE UndecidableInstances  #-}
+{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE TupleSections          #-}
+{-# LANGUAGE UndecidableInstances   #-}
+
 module MyExceptT
   ( MyExcept
   , MyExceptT
+  , MyMonadError(..)
   , mapMyExceptT
   , myExceptT
   , myThrowE
@@ -78,3 +81,15 @@ instance MonadState s m => MonadState s (MyExceptT e m) where
 
 instance MonadIO m => MonadIO (MyExceptT e m) where
   liftIO = lift . liftIO
+
+class MyMonadError e m | m -> e where
+  myThrowError :: e -> m a
+  myCatchError :: m a -> (e -> m a) -> m a
+
+instance Monad m => MyMonadError e (MyExceptT e m) where
+  myThrowError = myThrowE
+  myCatchError m h = myExceptT $ do
+    e <- runMyExceptT m
+    case e of
+      Right _   -> return e
+      Left  err -> runMyExceptT . h $ err

@@ -10,7 +10,6 @@ module MyExceptTParse
   , char
   , many
   , parse
-  , parseError
   , some
   , string
   ) where
@@ -26,22 +25,24 @@ data ParseState = ParseState {
   stString :: String
   } deriving (Eq, Show)
 
-newtype MyExceptTParse a = P {
-  unMyExceptTParse :: MyExceptT String (MyState ParseState) a
-  } deriving (Functor, Applicative, Monad, MyMonadState ParseState)
+newtype MyExceptTParse a = P
+  { unMyExceptTParse :: MyExceptT String (MyState ParseState) a
+  } deriving
+  ( Functor, Applicative, Monad
+  , MyMonadState ParseState
+  , MyMonadError String
+  )
 
 parse :: MyExceptTParse a -> String -> (Either String a, ParseState)
 parse p str
   = myRunState (runMyExceptT . unMyExceptTParse $ p) $ ParseState 0 str
-
-parseError = P . myThrowE
 
 instance MyMonadState s m => MyMonadState s (MyExceptT e m) where
   get = lift get
   put = lift . put
 
 instance Alternative (MyExceptTParse) where
-  empty   = parseError $ "Empty parser"
+  empty   = myThrowError $ "Empty parser"
   a <|> b = P . myExceptT $ do
     ea <- runMyExceptT . unMyExceptTParse $ a
     case ea of
@@ -58,14 +59,15 @@ char c = do
   let str = stString st
   let off = stOffset st
   case str of
-    [] -> parseError $ printf "Unexpected eof while char '%c' is expected" c
+    [] -> myThrowError $ printf "Unexpected eof while char '%c' is expected" c
     c':cs
       | c' == c -> do
           put $ st { stOffset = off + 1, stString = cs }
           return c
-      | otherwise -> parseError
+      | otherwise -> myThrowError
                      $ printf "Unexpected char '%c' while '%c' is expected" c' c
 
+string :: String -> MyExceptTParse String
 string s = do
   st <- get
   let str = stString st
@@ -73,7 +75,7 @@ string s = do
   let l   = length   s
   let s'  = take l   str
   if null s'
-    then parseError
+    then myThrowError
          $ printf (   "Unexpected eof: string \"%s\" is expected, "
                    ++ "but \"%s\" is available") s s'
     else
@@ -81,10 +83,11 @@ string s = do
       then do
         put $ st { stOffset = off + l, stString = drop l str }
         return s
-      else parseError
+      else myThrowError
            $ printf "Unexpected string \"%s\" while \"%s\" is expected" s' s
 
+eof :: MyExceptTParse a
 eof = do
   str <- stString <$> get
   case str of
-    c:_ -> parseError $ printf "EOF expected but '%c' found" c
+    c:_ -> myThrowError $ printf "EOF expected but '%c' found" c
