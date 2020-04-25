@@ -6,8 +6,11 @@
 module MyExceptTParse
   ( ParseState (..)
   , (<|>)
+  , digit
   , empty
+  , eof
   , char
+  , int
   , many
   , many2
   , many3
@@ -22,6 +25,7 @@ module MyExceptTParse
 
 import Control.Applicative (Alternative (..), many, optional, some)
 import Control.Monad.Trans (lift)
+import Data.Char           (isDigit)
 import MyExceptT
 import MyState
 import Text.Printf         (printf)
@@ -85,16 +89,26 @@ string s = P $ do
       else myThrowError
            $ printf "Unexpected string \"%s\" while \"%s\" is expected" s' s
 
-eof :: MyExceptTParse a
+eof :: MyExceptTParse ()
 eof = P $ do
   str <- stString <$> get
   case str of
     c:_ -> myThrowError $ printf "EOF expected but '%c' found" c
+    _   -> return ()
+
+digit :: MyExceptTParse Char
+digit = satisfy isDigit $ printf "digit"
+
+int :: (Read a, Integral a) => MyExceptTParse a
+int = do
+  minus <- optional (char '-')
+  i     <- read <$> some digit
+  case minus of
+    Just _  -> return $ -i
+    Nothing -> return $ i
 
 -- Re-implementations of `Alternative (many)`
 -- for the sake of Chapter 19 exercise 1 at p. 465
-
-singleton a = [a]
 
 -- Re-implementation via `(<|>)`
 some2 p = (:) <$> p <*> many2 p

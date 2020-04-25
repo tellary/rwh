@@ -16,3 +16,11 @@ Exercises on p. 465
     > `many2` uses `(<|>)`, it's a re-implementation of `Alternative (many)`.
     > The later should be used in practice. Also `(<|>)` is implemented
     > with `catchError`.
+
+2. Use `many` to write an `int` parser, with type `Parser Int`.
+   It should accept negative as well as positive integers.
+
+    > `int` parser is available in
+    > [`MyExceptTParse.hs`](../ch18/MyExceptTParse.hs)
+    > under `ch18`.
+    > Some Tests are in [`MyExceptTParseSpec.hs`](../ch18/MyExceptTParseSpec.hs)

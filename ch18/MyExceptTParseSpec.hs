@@ -65,3 +65,19 @@ main = hspec $ do
       `shouldBe`
       (Left "Unexpected string \"fo\" while \"bar\" is expected",
        ParseState { stOffset = 0, stString = "fo" })
+
+    it "parses positive int" $
+      parse int "281abc"
+      `shouldBe`
+      (Right 281, ParseState { stOffset = 3, stString = "abc" } )
+
+    it "parses negative int" $
+      parse int "-281abc"
+      `shouldBe`
+      (Right (-281), ParseState { stOffset = 4, stString = "abc" } )
+
+    it "fails to parse int on a char" $
+      parse int "a281abc"
+      `shouldBe`
+      (Left "Unexpected char 'a' while digit is expected",
+       ParseState { stOffset = 0, stString = "a281abc" })
