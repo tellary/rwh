@@ -9,12 +9,14 @@ module MyExceptTParse
   , empty
   , char
   , many
+  , optional
   , parse
+  , satisfy
   , some
   , string
   ) where
 
-import Control.Applicative (Alternative (..), many, some)
+import Control.Applicative (Alternative (..), many, optional, some)
 import Control.Monad.Trans (lift)
 import MyExceptT
 import MyState
@@ -29,7 +31,6 @@ newtype MyExceptTParse a = P
   { unMyExceptTParse :: MyExceptT String (MyState ParseState) a
   } deriving
   ( Functor, Applicative, Monad
-  , MyMonadState ParseState
   , MyMonadError String
   )
 
@@ -53,22 +54,24 @@ instance Alternative (MyExceptTParse) where
           r2@(Right _) -> return r2
           l @(Left  _) -> return l
 
-char :: Char -> MyExceptTParse Char
-char c = do
+char c = satisfy (== c) $ printf "'%c'" c
+
+satisfy :: (Char -> Bool) -> String -> MyExceptTParse Char
+satisfy p desc = P $ do
   st <- get
   let str = stString st
   let off = stOffset st
   case str of
-    [] -> myThrowError $ printf "Unexpected eof while char '%c' is expected" c
-    c':cs
-      | c' == c -> do
+    [] -> myThrowError $ printf "Unexpected eof while %s is expected" desc
+    c:cs
+      | p c -> do
           put $ st { stOffset = off + 1, stString = cs }
           return c
       | otherwise -> myThrowError
-                     $ printf "Unexpected char '%c' while '%c' is expected" c' c
+                     $ printf "Unexpected char '%c' while %s is expected" c desc
 
 string :: String -> MyExceptTParse String
-string s = do
+string s = P $ do
   st <- get
   let str = stString st
   let off = stOffset st
@@ -87,7 +90,7 @@ string s = do
            $ printf "Unexpected string \"%s\" while \"%s\" is expected" s' s
 
 eof :: MyExceptTParse a
-eof = do
+eof = P $ do
   str <- stString <$> get
   case str of
     c:_ -> myThrowError $ printf "EOF expected but '%c' found" c
