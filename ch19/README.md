@@ -24,3 +24,11 @@ Exercises on p. 465
     > [`MyExceptTParse.hs`](../ch18/MyExceptTParse.hs)
     > under `ch18`.
     > Some Tests are in [`MyExceptTParseSpec.hs`](../ch18/MyExceptTParseSpec.hs)
+
+3. Modify your `int` parser to throw `NumericOverflow` exception
+   if it detects a numeric overflow while parsing.
+
+    > `int` parser in
+    > [`MyExceptTParse.hs`](../ch18/MyExceptTParse.hs)
+    > detects `NumericOverflow` by comparing output of `show`
+    > with input of `read`

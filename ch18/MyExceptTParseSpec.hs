@@ -36,7 +36,7 @@ main = hspec $ do
     it "fails to parse some chars when some chars are not present" $
       parse (some $ char 'a') "bc"
       `shouldBe`
-      (Left "Unexpected char 'b' while 'a' is expected",
+      (Left . Chatty $ "Unexpected char 'b' while 'a' is expected",
        ParseState { stOffset = 0, stString = "bc" })
 
     it "parses a string" $
@@ -47,7 +47,7 @@ main = hspec $ do
     it "fails to parse a mismatching string" $
       parse (string "foo") "bar"
       `shouldBe`
-      (Left "Unexpected string \"bar\" while \"foo\" is expected",
+      (Left . Chatty $ "Unexpected string \"bar\" while \"foo\" is expected",
        ParseState { stOffset = 0, stString = "bar" })
 
     it "parses foo in (foo | bar)" $
@@ -63,7 +63,7 @@ main = hspec $ do
     it "fails to parse fo by (foo | bar) " $
       parse (string "foo" <|> string "bar") "fo"
       `shouldBe`
-      (Left "Unexpected string \"fo\" while \"bar\" is expected",
+      (Left . Chatty $ "Unexpected string \"fo\" while \"bar\" is expected",
        ParseState { stOffset = 0, stString = "fo" })
 
     it "parses positive int" $
@@ -79,5 +79,10 @@ main = hspec $ do
     it "fails to parse int on a char" $
       parse int "a281abc"
       `shouldBe`
-      (Left "Unexpected char 'a' while digit is expected",
+      (Left . Chatty $ "Unexpected char 'a' while digit is expected",
        ParseState { stOffset = 0, stString = "a281abc" })
+
+    it "fails to parse int with number overflow" $
+      (parse int "9999999999999999999" :: ParseResult Int)
+      `shouldBe`
+      (Left NumericOverflow, ParseState { stOffset = 19, stString = "" })
