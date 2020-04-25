@@ -9,10 +9,14 @@ module MyExceptTParse
   , empty
   , char
   , many
+  , many2
+  , many3
   , optional
   , parse
   , satisfy
   , some
+  , some2
+  , some3
   , string
   ) where
 
@@ -44,15 +48,7 @@ instance MyMonadState s m => MyMonadState s (MyExceptT e m) where
 
 instance Alternative (MyExceptTParse) where
   empty   = myThrowError $ "Empty parser"
-  a <|> b = P . myExceptT $ do
-    ea <- runMyExceptT . unMyExceptTParse $ a
-    case ea of
-      r1@(Right _)  -> return r1
-      Left _        -> do
-        eb <- runMyExceptT . unMyExceptTParse $ b
-        case eb of
-          r2@(Right _) -> return r2
-          l @(Left  _) -> return l
+  a <|> b = a `myCatchError` \_ -> b
 
 char c = satisfy (== c) $ printf "'%c'" c
 
@@ -94,3 +90,16 @@ eof = P $ do
   str <- stString <$> get
   case str of
     c:_ -> myThrowError $ printf "EOF expected but '%c' found" c
+
+-- Re-implementations of `Alternative (many)`
+-- for the sake of Chapter 19 exercise 1 at p. 465
+
+singleton a = [a]
+
+-- Re-implementation via `(<|>)`
+some2 p = (:) <$> p <*> many2 p
+many2 p = (:) <$> p <*> many2 p <|> pure []
+
+-- Re-implementation via `myCatchError`
+some3 p = (:) <$> p <*> many3 p
+many3 p = (:) <$> p <*> many3 p `myCatchError` \_ -> pure []

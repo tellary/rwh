@@ -13,6 +13,16 @@ main = hspec $ do
       `shouldBe`
       (Right "aaa", ParseState { stOffset = 3, stString = "bc" })
 
+    it "parses many chars 2" $
+      parse (many2 $ char 'a') "aaabc"
+      `shouldBe`
+      (Right "aaa", ParseState { stOffset = 3, stString = "bc" })
+
+    it "parses many chars 3" $
+      parse (many3 $ char 'a') "aaabc"
+      `shouldBe`
+      (Right "aaa", ParseState { stOffset = 3, stString = "bc" })
+
     it "parses empty result when many chars are not present" $
       parse (many $ char 'a') "bc"
       `shouldBe`

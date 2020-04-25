@@ -20,8 +20,10 @@ divByEx nominator (x:xs) = do
   when (x == 0) $ throw DivideByZero
   ((nominator `div` x) : ) <$> divByEx nominator xs
 
--- This isn't very useful generalization, because the only instance of
--- `MonadError ArithException m` would be `Either ArithException`
+-- `Either ArithException` is the only "root" monad to implement
+-- `MonadError ArithException m` directly.
+-- This generalization is useful to work with monad transformers having
+-- `Either` as root of the stack or `ExceptT` in the stack.
 divByM
   :: (Integral a, MonadError ArithException m)
   => a -> [a] -> m [a]
