@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" media="screen" href="/~d/styles/rss2enclosuresfull.xsl"?><?xml-stylesheet type="text/css" media="screen" href="http://feed.thisamericanlife.org/~d/styles/itemcontent.css"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:feedburner="http://rssnamespace.org/feedburner/ext/1.0" version="2.0" xml:base="https://www.thisamericanlife.org">
+<channel>
+ <title>This American Life</title>
+ <link>https://www.thisamericanlife.org</link>
+ <description>This American Life is a weekly public radio show, heard by 2.2 million people on more than 500 stations. Another 2.5 million people download the weekly podcast. It is hosted by Ira Glass, produced in collaboration with Chicago Public Media, delivered to stations by PRX The Public Radio Exchange, and has won all of the major broadcasting awards.</description>
+ <language>en</language>
+ <copyright>Copyright 1995-2020 This American Life</copyright>
+ <itunes:author>This American Life</itunes:author>
+ <itunes:subtitle>This American Life is a weekly public radio show, heard by 2.2 million people on more than 500 stations. Another 2.5 million people download the weekly podcast.</itunes:subtitle>
+ <itunes:owner> <itunes:email>rich@thislife.org</itunes:email>
+</itunes:owner>
+ <itunes:category text="Society &amp; Culture" />
+ <itunes:category text="Arts" />
+ <itunes:category text="News"> <itunes:category text="Politics" />
+</itunes:category>
+ <itunes:image href="https://files.thisamericanlife.org/sites/all/themes/thislife/img/tal-name-1400x1400.png" />
+<atom10:link xmlns:atom10="http://www.w3.org/2005/Atom" rel="self" type="application/rss+xml" href="http://feed.thisamericanlife.org/talpodcast" /><feedburner:info uri="talpodcast" /><atom10:link xmlns:atom10="http://www.w3.org/2005/Atom" rel="hub" href="http://pubsubhubbub.appspot.com/" /><feedburner:feedFlare href="http://www.podnova.com/add.srf?url=http%3A%2F%2Ffeed.thisamericanlife.org%2Ftalpodcast" src="http://www.podnova.com/img_chicklet_podnova.gif">Subscribe with Podnova</feedburner:feedFlare><feedburner:feedFlare href="http://www.netvibes.com/subscribe.php?url=http%3A%2F%2Ffeed.thisamericanlife.org%2Ftalpodcast" src="//www.netvibes.com/img/add2netvibes.gif">Subscribe with Netvibes</feedburner:feedFlare><feedburner:feedFlare href="https://add.my.yahoo.com/rss?url=http%3A%2F%2Ffeed.thisamericanlife.org%2Ftalpodcast" src="http://us.i1.yimg.com/us.yimg.com/i/us/my/addtomyyahoo4.gif">Subscribe with My Yahoo!</feedburner:feedFlare><feedburner:feedFlare href="http://feedly.com/#subscription/feed/http://feed.thisamericanlife.org/talpodcast" src="http://s3.feedly.com/feedburner/feedly.png">Subscribe with Feedly</feedburner:feedFlare><feedburner:feedFlare href="https://www.subtome.com/#/subscribe?feeds=http%3A%2F%2Ffeed.thisamericanlife.org%2Ftalpodcast" src="http://www.subtome.com/subtome-feedburner.png">Subscribe with SubToMe</feedburner:feedFlare><feedburner:feedFlare href="http://fusion.google.com/add?feedurl=http%3A%2F%2Ffeed.thisamericanlife.org%2Ftalpodcast" src="http://buttons.googlesyndication.com/fusion/add.gif">Subscribe with Google</feedburner:feedFlare><item>
+ <title>186: Prom</title>
+ <link>http://feed.thisamericanlife.org/~r/talpodcast/~3/S5-SuQjLyFs/prom</link>
+ <description>While the seniors danced at Prom Night 2001 in Hoisington, Kansas—a town of about 3,000—a tornado hit the town, destroying about a third of it. When they emerged from the dance, they discovered what had happened, and in the weeks that followed, they tried to explain to themselves why the tornado hit where it did. Plus other stories that happen on Prom Night.&lt;img src="http://feeds.feedburner.com/~r/talpodcast/~4/S5-SuQjLyFs" height="1" width="1" alt=""/&gt;</description>
+ <pubDate>Sun, 03 May 2020 18:00:00 -0400</pubDate>
+ <guid isPermaLink="false">37487 at https://www.thisamericanlife.org</guid>
+ <itunes:author>This American Life</itunes:author>
+ <enclosure url="https://www.podtrac.com/pts/redirect.mp3/dovetail.prxu.org/188/8f02bc01-6966-44d0-9dcc-a827aadd51db/186.mp3" type="audio/mpeg" />
+ <itunes:duration>00:59:40</itunes:duration>
+ <itunes:subtitle>While the seniors danced at Prom Night 2001 in Hoisington, Kansas—a town of about 3,000—a tornado hit the town.
+</itunes:subtitle>
+ <itunes:summary>While the seniors danced at Prom Night 2001 in Hoisington, Kansas—a town of about 3,000—a tornado hit the town, destroying about a third of it. When they emerged from the dance, they discovered what had happened, and in the weeks that followed, they tried to explain to themselves why the tornado hit where it did. Plus other stories that happen on Prom Night.
+</itunes:summary>
+<dc:creator>This American Life</dc:creator><feedburner:origLink>https://www.thisamericanlife.org/186/prom</feedburner:origLink></item>
+<item>
+ <title>702: One Last Thing Before I Go</title>
+ <link>http://feed.thisamericanlife.org/~r/talpodcast/~3/kuRw5UvDrq0/one-last-thing-before-i-go</link>
+ <description>Words can seem so puny and ineffective sometimes. On this show, we have stories in which ordinary people make last ditch efforts to get through to their loved ones, using a combination of small talk and not-so-small talk.&lt;img src="http://feeds.feedburner.com/~r/talpodcast/~4/kuRw5UvDrq0" height="1" width="1" alt=""/&gt;</description>
+ <pubDate>Sun, 26 Apr 2020 18:00:00 -0400</pubDate>
+ <guid isPermaLink="false">44470 at https://www.thisamericanlife.org</guid>
+ <itunes:author>This American Life</itunes:author>
+ <enclosure url="https://www.podtrac.com/pts/redirect.mp3/dovetail.prxu.org/188/32b9878d-7da9-42af-bf6a-8deea635f846/702.mp3" type="audio/mpeg" />
+ <itunes:duration>01:04:25</itunes:duration>
+ <itunes:subtitle>Ordinary people make last ditch efforts to get through to their loved ones.
+</itunes:subtitle>
+ <itunes:summary>Words can seem so puny and ineffective sometimes. On this show, we have stories in which ordinary people make last ditch efforts to get through to their loved ones, using a combination of small talk and not-so-small talk.
+</itunes:summary>
+<dc:creator>This American Life</dc:creator><feedburner:origLink>https://www.thisamericanlife.org/702/one-last-thing-before-i-go</feedburner:origLink></item>
+<item>
+ <title>701: Black Box</title>
+ <link>http://feed.thisamericanlife.org/~r/talpodcast/~3/yMpJ9_VRO7Q/black-box</link>
+ <description>Desperate to know what happened to his family, a man obsessively decodes the only information about them he can get. That, and other stories of people looking into the void for answers.&lt;img src="http://feeds.feedburner.com/~r/talpodcast/~4/yMpJ9_VRO7Q" height="1" width="1" alt=""/&gt;</description>
+ <pubDate>Sun, 19 Apr 2020 18:00:00 -0400</pubDate>
+ <guid isPermaLink="false">44453 at https://www.thisamericanlife.org</guid>
+ <itunes:author>This American Life</itunes:author>
+ <enclosure url="https://www.podtrac.com/pts/redirect.mp3/dovetail.prxu.org/188/4c9e3651-7228-48af-900c-38fa331a4466/701.mp3" type="audio/mpeg" />
+ <itunes:duration>01:03:28</itunes:duration>
+ <itunes:subtitle>Desperate to know what happened to his family, a man obsessively decodes the only information about them he can get.
+</itunes:subtitle>
+ <itunes:summary>Desperate to know what happened to his family, a man obsessively decodes the only information about them he can get. That, and other stories of people looking into the void for answers.
+</itunes:summary>
+<dc:creator>This American Life</dc:creator><feedburner:origLink>https://www.thisamericanlife.org/701/black-box</feedburner:origLink></item>
+<item>
+ <title>700: Embiggening</title>
+ <link>http://feed.thisamericanlife.org/~r/talpodcast/~3/OqwtGsvrgt0/embiggening</link>
+ <description>Sometimes a sketch of a thing needs filling in for its true significance to be known.&lt;img src="http://feeds.feedburner.com/~r/talpodcast/~4/OqwtGsvrgt0" height="1" width="1" alt=""/&gt;</description>
+ <pubDate>Sun, 12 Apr 2020 18:00:00 -0400</pubDate>
+ <guid isPermaLink="false">44450 at https://www.thisamericanlife.org</guid>
+ <itunes:author>This American Life</itunes:author>
+ <enclosure url="https://www.podtrac.com/pts/redirect.mp3/dovetail.prxu.org/188/e1b844c9-b14c-4e8f-b885-260bf3775f7d/700.mp3" type="audio/mpeg" />
+ <itunes:duration>01:04:10</itunes:duration>
+ <itunes:subtitle>Sometimes a sketch of a thing needs filling in for its true significance to be known.
+</itunes:subtitle>
+ <itunes:summary>Sometimes a sketch of a thing needs filling in for its true significance to be known.
+</itunes:summary>
+<dc:creator>This American Life</dc:creator><feedburner:origLink>https://www.thisamericanlife.org/700/embiggening</feedburner:origLink></item>
+<item>
+ <title>699: Fiasco!</title>
+ <link>http://feed.thisamericanlife.org/~r/talpodcast/~3/o1dBSBpuQL8/fiasco</link>
+ <description>Stories of when things go wrong. Really wrong. When you leave the normal realm of human error, fumble, mishap, and mistake and enter the territory of really huge breakdowns. Fiascos. Things go so awry that normal social order collapses.&lt;img src="http://feeds.feedburner.com/~r/talpodcast/~4/o1dBSBpuQL8" height="1" width="1" alt=""/&gt;</description>
+ <pubDate>Sun, 05 Apr 2020 18:00:00 -0400</pubDate>
+ <guid isPermaLink="false">44444 at https://www.thisamericanlife.org</guid>
+ <itunes:author>This American Life</itunes:author>
+ <enclosure url="https://www.podtrac.com/pts/redirect.mp3/dovetail.prxu.org/188/7e31e3bc-fdde-4faa-ab55-ba4d7dc54d6f/699.mp3" type="audio/mpeg" />
+ <itunes:duration>01:00:23</itunes:duration>
+ <itunes:subtitle>Stories of when things go wrong. Really wrong.
+</itunes:subtitle>
+ <itunes:summary>Stories of when things go wrong. Really wrong. When you leave the normal realm of human error, fumble, mishap, and mistake and enter the territory of really huge breakdowns. Fiascos. Things go so awry that normal social order collapses.
+</itunes:summary>
+<dc:creator>This American Life</dc:creator><feedburner:origLink>https://www.thisamericanlife.org/699/fiasco</feedburner:origLink></item>
+<item>
+ <title>698: The Test</title>
+ <link>http://feed.thisamericanlife.org/~r/talpodcast/~3/uc-cm101lz8/the-test</link>
+ <description>The coronavirus has now fully arrived in the United States. This week, stories of people trying to rise to that challenge, in some pretty extreme situations.&lt;img src="http://feeds.feedburner.com/~r/talpodcast/~4/uc-cm101lz8" height="1" width="1" alt=""/&gt;</description>
+ <pubDate>Sun, 29 Mar 2020 18:00:00 -0400</pubDate>
+ <guid isPermaLink="false">44427 at https://www.thisamericanlife.org</guid>
+ <itunes:author>This American Life</itunes:author>
+ <enclosure url="https://www.podtrac.com/pts/redirect.mp3/dovetail.prxu.org/188/5053513b-a8ca-40bc-b80a-3ee74a132cfc/698.mp3" type="audio/mpeg" />
+ <itunes:duration>01:01:06</itunes:duration>
+ <itunes:subtitle>Stories of people trying to rise to the challenge presented by coronavrius, in some pretty extreme situations.
+</itunes:subtitle>
+ <itunes:summary>The coronavirus has now fully arrived in the United States. This week, stories of people trying to rise to that challenge, in some pretty extreme situations.
+</itunes:summary>
+<dc:creator>This American Life</dc:creator><feedburner:origLink>https://www.thisamericanlife.org/698/the-test</feedburner:origLink></item>
+<item>
+ <title>697: Alone Together</title>
+ <link>http://feed.thisamericanlife.org/~r/talpodcast/~3/Efe7K5gy0yY/alone-together</link>
+ <description>This week, as the staff creates the episode from their apartments and houses, with our host in quarantine, in this moment when everyone’s reaching out to the people they love, we put together a collection of family stories, with some timely stuff at the top.&lt;img src="http://feeds.feedburner.com/~r/talpodcast/~4/Efe7K5gy0yY" height="1" width="1" alt=""/&gt;</description>
+ <pubDate>Sun, 22 Mar 2020 18:00:00 -0400</pubDate>
+ <guid isPermaLink="false">44425 at https://www.thisamericanlife.org</guid>
+ <itunes:author>This American Life</itunes:author>
+ <enclosure url="https://www.podtrac.com/pts/redirect.mp3/dovetail.prxu.org/188/091d67bc-c517-4ea4-91db-ed5b34f9b8ef/697.mp3" type="audio/mpeg" />
+ <itunes:duration>01:01:08</itunes:duration>
+ <itunes:subtitle>In this moment when everyone’s reaching out to the people they love, we put together a collection of family stories.
+</itunes:subtitle>
+ <itunes:summary>This week, as the staff creates the episode from their apartments and houses, with our host in quarantine, in this moment when everyone’s reaching out to the people they love, we put together a collection of family stories, with some timely stuff at the top.
+</itunes:summary>
+<dc:creator>This American Life</dc:creator><feedburner:origLink>https://www.thisamericanlife.org/697/alone-together</feedburner:origLink></item>
+<item>
+ <title>696: Low Hum of Menace</title>
+ <link>http://feed.thisamericanlife.org/~r/talpodcast/~3/ALI1QUhD4Cs/low-hum-of-menace</link>
+ <description>Things do not seem fine at all, but it’s hard to say why.&lt;img src="http://feeds.feedburner.com/~r/talpodcast/~4/ALI1QUhD4Cs" height="1" width="1" alt=""/&gt;</description>
+ <pubDate>Sun, 15 Mar 2020 18:00:00 -0400</pubDate>
+ <guid isPermaLink="false">44418 at https://www.thisamericanlife.org</guid>
+ <itunes:author>This American Life</itunes:author>
+ <enclosure url="https://www.podtrac.com/pts/redirect.mp3/dovetail.prxu.org/188/85067b18-2a2c-410f-bb7d-2c0c54c2571c/696.mp3" type="audio/mpeg" />
+ <itunes:duration>01:04:00</itunes:duration>
+ <itunes:subtitle>Things do not seem fine at all, but it’s hard to say why.
+</itunes:subtitle>
+ <itunes:summary>Things do not seem fine at all, but it’s hard to say why.
+</itunes:summary>
+<dc:creator>This American Life</dc:creator><feedburner:origLink>https://www.thisamericanlife.org/696/low-hum-of-menace</feedburner:origLink></item>
+<item>
+ <title>695: Everyone's a Critic</title>
+ <link>http://feed.thisamericanlife.org/~r/talpodcast/~3/OU0E2-8fPLA/everyones-a-critic</link>
+ <description>People squirming in a world where everything is rated and reviewed.&lt;img src="http://feeds.feedburner.com/~r/talpodcast/~4/OU0E2-8fPLA" height="1" width="1" alt=""/&gt;</description>
+ <pubDate>Sun, 01 Mar 2020 18:00:00 -0500</pubDate>
+ <guid isPermaLink="false">44410 at https://www.thisamericanlife.org</guid>
+ <itunes:author>This American Life</itunes:author>
+ <enclosure url="https://www.podtrac.com/pts/redirect.mp3/dovetail.prxu.org/188/1b2d066f-e3b7-4d4d-b20d-2ed2248aeccc/695.mp3" type="audio/mpeg" />
+ <itunes:duration>01:00:33</itunes:duration>
+ <itunes:subtitle>People squirming in a world where everything is rated and reviewed.
+</itunes:subtitle>
+ <itunes:summary>People squirming in a world where everything is rated and reviewed.
+</itunes:summary>
+<dc:creator>This American Life</dc:creator><feedburner:origLink>https://www.thisamericanlife.org/695/everyones-a-critic</feedburner:origLink></item>
+<item>
+ <title>694: Get Back to Where You Once Belonged</title>
+ <link>http://feed.thisamericanlife.org/~r/talpodcast/~3/DLszX62wk1k/get-back-to-where-you-once-belonged</link>
+ <description>People looking everywhere to find a place—any place—where, for once, they don't have to be the odd man out.&lt;img src="http://feeds.feedburner.com/~r/talpodcast/~4/DLszX62wk1k" height="1" width="1" alt=""/&gt;</description>
+ <pubDate>Sun, 16 Feb 2020 18:00:00 -0500</pubDate>
+ <guid isPermaLink="false">44397 at https://www.thisamericanlife.org</guid>
+ <itunes:author>This American Life</itunes:author>
+ <enclosure url="https://www.podtrac.com/pts/redirect.mp3/dovetail.prxu.org/188/d77e669d-5ec0-4d41-a315-6baeae56e9db/694.mp3" type="audio/mpeg" />
+ <itunes:duration>01:04:58</itunes:duration>
+ <itunes:subtitle>People looking everywhere to find a place—any place—where, for once, they don't have to be the odd man out.
+</itunes:subtitle>
+ <itunes:summary>People looking everywhere to find a place—any place—where, for once, they don't have to be the odd man out.
+</itunes:summary>
+<dc:creator>This American Life</dc:creator><feedburner:origLink>https://www.thisamericanlife.org/694/get-back-to-where-you-once-belonged</feedburner:origLink></item>
+</channel>
+</rss>

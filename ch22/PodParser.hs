@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module PodParser (parseEpisodes) where
 
 import           Data.Default    (def)
