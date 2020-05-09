@@ -1,11 +1,14 @@
-import qualified Data.Text.Lazy as TL
-import           PodParser
-import           PodTypes
-import           Test.Hspec
+{-# LANGUAGE TemplateHaskell #-}
+
+import qualified Data.Text.Lazy as TL (pack)
+import           PodParser      (parseEpisodes)
+import           PodTypes       (Episode (epUrl), podcast)
+import           Refined        (unrefine)
+import           Test.Hspec     (describe, hspec, it, shouldReturn)
 
 urls f
-  = map epUrl
-  . parseEpisodes (Podcast 1 "")
+  = map (unrefine . epUrl)
+  . parseEpisodes $$(podcast 1 "ignore")
   . TL.pack <$> readFile f
 
 main = hspec $ do
