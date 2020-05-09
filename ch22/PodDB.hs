@@ -11,10 +11,30 @@ module PodDB
   , updatePodcast
   ) where
 
-import Control.Exception (Exception, catch, throw)
-import Control.Monad (when)
-import Database.SQLite.Simple
-import PodTypes
+import Control.Exception                (Exception, catch, throw)
+import Control.Monad                    (when)
+import Data.Typeable                    (Typeable)
+import Database.SQLite.Simple           (Connection, FromRow (..),
+                                         ResultError (ConversionFailed),
+                                         SQLError (sqlErrorDetails), changes,
+                                         execute, execute_, field,
+                                         lastInsertRowId, query, query_)
+import Database.SQLite.Simple.FromField (FromField (..), returnError)
+import Database.SQLite.Simple.ToField   (ToField (..))
+import PodTypes                         (Episode (..), PodId, Podcast (..))
+import Refined                          (Predicate, Refined, refine, refineFail,
+                                         unrefine)
+
+instance (Typeable a, Predicate p a, FromField a)
+    => FromField (Refined p a) where
+  fromField f = do
+    v <- fromField f
+    case refine v of
+      Right r -> pure r
+      Left  e -> returnError ConversionFailed f (show e)
+
+instance (Predicate p a, ToField a) => ToField (Refined p a) where
+  toField = toField . unrefine
 
 sqlPodTables     = "SELECT name FROM sqlite_master \n\
                    \WHERE type='table' \n\
@@ -45,9 +65,9 @@ sqlListPodcastEpisodesByDone = "SELECT id, url, done FROM episode\n\
                                \WHERE castId = ? AND done = ?"
 
 data PodDBError
-  = PodcastAlreadyExists Int
-  | NoSuchEpisode Int
-  | NoSuchPodcast Int
+  = PodcastAlreadyExists PodId
+  | NoSuchEpisode PodId
+  | NoSuchPodcast PodId
   deriving (Eq, Show)
 
 instance Exception PodDBError
@@ -67,8 +87,8 @@ addPodcast conn p = do
                  == sqlErrorDetails e
               then throw . PodcastAlreadyExists $ castId p
               else throw e
-  id <- lastInsertRowId conn
-  return $ p { castId = fromIntegral $ id }
+  id <- refineFail . fromIntegral =<< lastInsertRowId conn
+  return $ p { castId = id }
 
 updatePodcast conn p = do
   execute conn sqlUpdatePodcast (castUrl p, castId p)

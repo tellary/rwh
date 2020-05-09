@@ -1,7 +1,7 @@
-import qualified Data.Text.Lazy  as TL
-import PodParser
-import PodTypes
-import Test.Hspec
+import qualified Data.Text.Lazy as TL
+import           PodParser
+import           PodTypes
+import           Test.Hspec
 
 urls f
   = map epUrl
