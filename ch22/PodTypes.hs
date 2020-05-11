@@ -6,21 +6,15 @@ module PodTypes
   , PodId
   , PodUrl
   , episode
-  , episodeThrow
-  , liftTyped
   , podcast
   ) where
 
-import Language.Haskell.TH        (Q)
-import Language.Haskell.TH.Syntax (Lift (..), TExp (TExp))
-import Refined                    (NonEmpty, Positive, Refined, refineTH,
-                                   refineThrow)
+import Language.Haskell.TH        (Q, TExp)
+import Language.Haskell.TH.Syntax (Lift (..))
+import Refined                    (NonEmpty, Positive, Refined, refineTH)
 
 type PodId  = Refined Positive Int
 type PodUrl = Refined NonEmpty String
-
-liftTyped :: Lift a => a -> Q (TExp a)
-liftTyped = fmap TExp . lift
 
 data Podcast = Podcast
   { castId  :: PodId
@@ -38,12 +32,5 @@ podcast :: Int -> String -> Q (TExp Podcast)
 podcast castId castUrl
   = [|| Podcast $$(refineTH castId) $$(refineTH castUrl) ||]
 
-episodeThrow epId epUrl epDone epCast
-  = Episode
-  <$> refineThrow epId
-  <*> refineThrow epUrl
-  <*> pure epDone
-  <*> pure epCast
-
 episode epId epUrl epDone epCast
-  = liftTyped =<< episodeThrow epId epUrl epDone epCast
+  = [|| Episode $$(refineTH epId) $$(refineTH epUrl) epDone epCast ||]
