@@ -3,13 +3,13 @@
 
 module PodParser (parseEpisodes) where
 
+import           Control.Monad.Catch        (MonadThrow)
 import           Data.Default               (def)
 import qualified Data.Text                  as T (Text, unpack)
 import qualified Data.Text.Lazy             as TL (Text)
-import           Language.Haskell.TH.Syntax (Exp (ListE), Q, TExp (..))
-import           PodTypes                   (Episode (Episode), Podcast,
-                                             episode)
-import           Refined                    (refine, refineTH)
+import           Language.Haskell.TH.Syntax (Q, TExp (..))
+import           PodTypes                   (Episode, Podcast, episodeThrow,
+                                             liftTyped)
 import           Text.XML                   (parseText_)
 import           Text.XML.Cursor            (attribute, element, fromDocument,
                                              ($//), (>=>))
@@ -21,17 +21,11 @@ parseFeed = feed . parseText_ def
 
 feed doc = Feed $ fromDocument doc $// element "enclosure" >=> attribute "url"
 
-episodesTH :: Podcast -> Feed -> Q (TExp [Episode])
-episodesTH p = fmap TExp . fmap ListE . sequence . map urlToEp . urls
-  where urlToEp url = unType <$> episode 666 (T.unpack url) False p
+episodes :: Podcast -> Feed -> Q (TExp [Episode])
+episodes p f = liftTyped =<< (episodesThrow p $ f)
 
-episodes p = map urlToEp . urls
-  where urlToEp url
-          = Episode $$(refineTH 666) (refineUrl $ T.unpack url) False p
-        refineUrl url
-          = either
-            (const $ error "Empty url not allowed")
-            id
-          $ refine url
+episodesThrow :: MonadThrow m => Podcast -> Feed -> m [Episode]
+episodesThrow p = mapM urlToEp . urls
+  where urlToEp url = episodeThrow 666 (T.unpack url) False p
 
-parseEpisodes p = episodes p . parseFeed
+parseEpisodes p = either (error . show) id . episodesThrow p . parseFeed
