@@ -1,17 +1,18 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell     #-}
 
 import Control.Exception      (catch, finally, throw)
 import Data.IORef             (IORef, newIORef, readIORef, writeIORef)
-import Database.SQLite.Simple (Connection, changes, close, open)
+import Database.SQLite.Simple (Connection, SQLError, changes, close)
 import PodDB                  (PodDBError (PodcastAlreadyExists),
                                addEpisodeMaybe, addPodcast, initDB,
-                               listPodcastEpisodesByDone, listPodcasts,
+                               listPodcastEpisodesByDone, listPodcasts, openFK,
                                updateEpisode, updatePodcast)
 import PodTypes               (episode, podcast)
 import Refined                (refineTH)
 import System.Directory       (removeFile)
 import System.IO.Error        (doesNotExistErrorType, ioeGetErrorType)
-import Test.HUnitPlus         (assertThrowsExact)
+import Test.HUnitPlus         (assertThrows, assertThrowsExact)
 import Test.Tasty             (DependencyType (AllSucceed), TestTree, after,
                                defaultMain, testGroup)
 import Test.Tasty.HUnit       (testCase, (@?=))
@@ -32,7 +33,7 @@ intTests testDbFile connRef = testGroup "PodDB integration tests"
                   if doesNotExistErrorType == ioeGetErrorType e
                   then return ()
                   else throw e
-      conn <- open testDbFile
+      conn <- openFK testDbFile
       initDB conn
       writeIORef connRef conn
 
@@ -115,4 +116,12 @@ intTests testDbFile connRef = testGroup "PodDB integration tests"
       updateEpisode conn $$(episode 1 "epUrlOne'" True $$(podcast 1 "bla"))
       [e]  <- listPodcastEpisodesByDone conn $$(podcast 1 "foo") True
       e @?= $$(episode 1 "epUrlOne'" True $$(podcast 1 "foo"))
+
+  , after AllSucceed "Init DB" $
+    testCase "Add episode with nonexistent podcast fails" $ do
+      conn <- readIORef connRef
+      assertThrows (\(_ :: SQLError) -> return ()) $ do
+        addEpisodeMaybe conn
+          $$(episode 1 "nonCreatedUrl" True $$(podcast 666 "bla"))
+        return ()
   ]

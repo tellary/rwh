@@ -7,6 +7,7 @@ module PodDB
   , initDB
   , listPodcastEpisodesByDone
   , listPodcasts
+  , openFK
   , updateEpisode
   , updatePodcast
   ) where
@@ -18,7 +19,7 @@ import Database.SQLite.Simple           (Connection, FromRow (..),
                                          ResultError (ConversionFailed),
                                          SQLError (sqlErrorDetails), changes,
                                          execute, execute_, field,
-                                         lastInsertRowId, query, query_)
+                                         lastInsertRowId, open, query, query_)
 import Database.SQLite.Simple.FromField (FromField (..), returnError)
 import Database.SQLite.Simple.ToField   (ToField (..))
 import PodTypes                         (Episode (..), PodId, Podcast (..))
@@ -75,6 +76,11 @@ instance Exception PodDBError
 instance FromRow Podcast where
   fromRow = Podcast <$> field <*> field
 
+openFK s = do
+  conn <- open s
+  execute_ conn "PRAGMA foreign_keys = ON"
+  return conn
+
 initDB conn = do
   tables <- concat <$> query_ conn sqlPodTables :: IO [String]
   when ("podcast" `notElem` tables) $ execute_ conn sqlCreatePodcast
@@ -110,13 +116,13 @@ It can not return `Episode`, because we don't know episode id
 in case of the unique constraint violation -}
 addEpisodeMaybe :: Connection -> Episode -> IO Bool
 addEpisodeMaybe conn e = do
-    execute conn sqlInsertEpisode (epUrl e, epDone e, castId . epCast $ e)
-    return True
+  execute conn sqlInsertEpisode (epUrl e, epDone e, castId . epCast $ e)
+  return True
   `catch` \e ->
-    if "UNIQUE constraint failed: episode.castId, episode.url"
-      == sqlErrorDetails e
-    then return False
-    else throw e
+  if "UNIQUE constraint failed: episode.castId, episode.url"
+    == sqlErrorDetails e
+  then return False
+  else throw e
 
 updateEpisode :: Connection -> Episode -> IO ()
 updateEpisode conn e = do
