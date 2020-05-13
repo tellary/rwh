@@ -1,4 +1,8 @@
 *.o
 *.hi
+*.dyn_o
+*.imports
+*.dyn_hi
+
 dist/
 *.db

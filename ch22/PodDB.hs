@@ -22,7 +22,8 @@ import Database.SQLite.Simple           (Connection, FromRow (..),
                                          lastInsertRowId, open, query, query_)
 import Database.SQLite.Simple.FromField (FromField (..), returnError)
 import Database.SQLite.Simple.ToField   (ToField (..))
-import PodTypes                         (Episode (..), PodId, Podcast (..))
+import PodTypes                         (Episode (..), PodId, PodUrl,
+                                         Podcast (..))
 import Refined                          (Predicate, Refined, refine, refineFail,
                                          unrefine)
 
@@ -66,7 +67,7 @@ sqlListPodcastEpisodesByDone = "SELECT id, url, done FROM episode\n\
                                \WHERE castId = ? AND done = ?"
 
 data PodDBError
-  = PodcastAlreadyExists PodId
+  = PodcastAlreadyExists PodUrl
   | NoSuchEpisode PodId
   | NoSuchPodcast PodId
   deriving (Eq, Show)
@@ -91,7 +92,7 @@ addPodcast conn p = do
     `catch` \e ->
               if "UNIQUE constraint failed: podcast.url"
                  == sqlErrorDetails e
-              then throw . PodcastAlreadyExists $ castId p
+              then throw . PodcastAlreadyExists $ castUrl p
               else throw e
   id <- refineFail . fromIntegral =<< lastInsertRowId conn
   return $ p { castId = id }

@@ -26,4 +26,5 @@ episodes :: Podcast -> Feed -> [Episode]
 episodes p = map urlToEp . urls
   where urlToEp url = Episode $$(refineTH 666) url False p
 
+parseEpisodes :: Podcast -> TL.Text -> [Episode]
 parseEpisodes p = episodes p . parseFeed
