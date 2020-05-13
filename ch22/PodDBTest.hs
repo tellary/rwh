@@ -46,7 +46,7 @@ intTests testDbFile connRef = testGroup "PodDB integration tests"
   , after AllSucceed "Add podcast"
     $ testCase "Duplicate podcast fails" $ do
       conn <- readIORef connRef
-      assertThrowsExact (PodcastAlreadyExists $$(refineTH 1))
+      assertThrowsExact (PodcastAlreadyExists $$(refineTH "castUrlOne"))
         (addPodcast conn $$(podcast 666 "castUrlOne"))
 
   , after AllSucceed "Add podcast"

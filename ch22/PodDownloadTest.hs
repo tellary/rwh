@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 import Control.Exception
 import PodDownload
 import PodDB
