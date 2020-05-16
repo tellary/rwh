@@ -13,7 +13,7 @@ import PodDB                  (initDB, listPodcastEpisodesByDone, listPodcasts,
 import PodDownload            (addAndDownloadPodcast, downloadEpisodes,
                                downloadPodcasts, numThreads)
 import PodTypes               (Podcast (Podcast), unCastId, unCastUrl)
-import Refined                (refine, refineTH)
+import Refined                (refineFail, refineTH)
 import Text.Printf            (printf)
 
 data Command = Add String
@@ -56,12 +56,6 @@ cmds
        idm
      )
 
-podUrl url = either
-             (const
-              . error
-              $ "Impossible to get an empty url from a command"
-             ) id $ refine url
-
 main = do
   pool <- mkPool "pod.db" numThreads
   withResource pool initDB
@@ -74,8 +68,10 @@ replLoop pool = do
              putStrLn $ displayException (e :: SomeException)
              replLoop pool)
     $ case cmd of
-        Add url -> do
-          addAndDownloadPodcast pool $ Podcast $$(refineTH 666) (podUrl url)
+        Add url  -> do
+          addAndDownloadPodcast pool
+            =<< Podcast $$(refineTH 666)
+            <$> refineFail url
           replLoop pool
         List     -> do
           ps <- withResource pool listPodcasts
