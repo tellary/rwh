@@ -1,11 +1,14 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-import Control.Exception
-import PodDownload
-import PodDB
-import PodTypes
-import System.IO.Error
-import System.Directory
+module PodDownloadTest where
+
+import Control.Exception (catch, throw)
+import Data.Pool         (withResource)
+import PodDB             (initDB, listPodcastEpisodesByDone, mkPool)
+import PodDownload       (addAndDownloadPodcast, downloadEpisodes, numThreads)
+import PodTypes          (podcast)
+import System.Directory  (removeFile)
+import System.IO.Error   (doesNotExistErrorType, ioeGetErrorType)
 
 d = do
   removeFile "pod-test.db"
@@ -13,11 +16,10 @@ d = do
               if doesNotExistErrorType == ioeGetErrorType e
               then return ()
               else throw e
-  conn <- openFK "pod-test.db"
-  initDB conn
-  let p0 = $$(podcast 666 "http://feed.thisamericanlife.org/talpodcast")
-  p <- addPodcast conn p0
-  downloadPodcastInfo conn p
-  es <- listPodcastEpisodesByDone conn p False
-  downloadEpisodes conn es
+  pool <- mkPool "pod-test.db" numThreads
+  withResource pool initDB
+  p <- addAndDownloadPodcast pool
+    $$(podcast 666 "http://feed.thisamericanlife.org/talpodcast")
+  es <- withResource pool $ \conn -> listPodcastEpisodesByDone conn False p
+  downloadEpisodes pool es
   

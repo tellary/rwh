@@ -7,6 +7,7 @@ module PodDB
   , initDB
   , listPodcastEpisodesByDone
   , listPodcasts
+  , mkPool
   , openFK
   , updateEpisode
   , updatePodcast
@@ -14,11 +15,12 @@ module PodDB
 
 import Control.Exception                (Exception, catch, throw)
 import Control.Monad                    (when)
+import Data.Pool                        (createPool)
 import Data.Typeable                    (Typeable)
 import Database.SQLite.Simple           (Connection, FromRow (..),
                                          ResultError (ConversionFailed),
                                          SQLError (sqlErrorDetails), changes,
-                                         execute, execute_, field,
+                                         close, execute, execute_, field,
                                          lastInsertRowId, open, query, query_)
 import Database.SQLite.Simple.FromField (FromField (..), returnError)
 import Database.SQLite.Simple.ToField   (ToField (..))
@@ -82,6 +84,14 @@ openFK s = do
   execute_ conn "PRAGMA foreign_keys = ON"
   return conn
 
+mkPool db size =
+  createPool
+  (openFK db)
+  close
+  1              -- 1 stripe
+  (60*60*24*365) -- keep a connection open for 1 year
+  size
+
 initDB conn = do
   tables <- concat <$> query_ conn sqlPodTables :: IO [String]
   when ("podcast" `notElem` tables) $ execute_ conn sqlCreatePodcast
@@ -134,8 +144,8 @@ updateEpisode conn e = do
     1 -> return ()
     _ -> fail "Multiple episode ids aren't possible"
 
-listPodcastEpisodesByDone :: Connection -> Podcast -> Bool -> IO [Episode]
-listPodcastEpisodesByDone conn p done = do
+listPodcastEpisodesByDone :: Connection -> Bool -> Podcast -> IO [Episode]
+listPodcastEpisodesByDone conn done p = do
   rows <- query conn sqlListPodcastEpisodesByDone (castId $ p, done)
   return $ map ep rows
   where ep (id, url, done) = Episode id url done p

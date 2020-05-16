@@ -1,5 +1,4 @@
 module OptParseREPL (repl) where
-
 import Control.Monad                   (when)
 import Data.List                       (isInfixOf)
 import Data.List.Split                 (splitOn)
@@ -14,6 +13,7 @@ import Options.Applicative             (CommandFields, Mod,
                                         hsubparser, idm, info, metavar)
 import Options.Applicative.Help.Chunk  (Chunk (unChunk), extractChunk)
 import Options.Applicative.Help.Pretty (Doc, displayS, renderPretty)
+import System.IO                       (hFlush, stdout)
 
 renderHelpChunk :: Int -> (ParserHelp -> Chunk Doc) -> ParserHelp -> String
 renderHelpChunk cols f
@@ -28,6 +28,7 @@ repl cmds =
 repl0 parser = do
   printMenu parser
   putStr "> "
+  hFlush stdout -- Flushing so that "> " is output without newline
   args <- filter (not . null) . splitOn " " <$> getLine
   case execParserPure defaultPrefs (info parser idm) args of
     Success c -> return c
