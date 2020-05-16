@@ -14,14 +14,14 @@ urls f
 main = hspec $ do
   describe "parseEpisodes" $ do
     it "should parse `example-rss.xml`" $
-      urls "example-rss.xml"
+      urls "data/example-rss.xml"
       `shouldReturn`
       [ "http://www.example.com/radio/lambdas.mp3"
       , "http://www.example.com/radio/parsec.mp3"
       ]
 
     it "should parse `thisamericanlife.org-rss.xml`" $
-       urls "thisamericanlife.org-rss.xml"
+       urls "data/thisamericanlife.org-rss.xml"
       `shouldReturn`
       [ "https://www.podtrac.com/pts/redirect.mp3/dovetail.prxu.org/188/\
         \8f02bc01-6966-44d0-9dcc-a827aadd51db/186.mp3"
