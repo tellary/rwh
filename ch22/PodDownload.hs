@@ -18,9 +18,9 @@ import qualified Network.Wreq.Session       as Sess (get, newSession)
 import           PodDB                      (addPodcast)
 import           PodDB                      (addEpisodeMaybe, updateEpisode)
 import           PodParser                  (parseEpisodes)
-import           PodTypes                   (Episode (epCast, epDone, epId, epUrl),
-                                             Podcast (castId, castUrl))
-import           Refined                    (unrefine)
+import           PodTypes                   (Episode (epCast, epDone),
+                                             unCastId, unCastUrl, unEpId,
+                                             unEpUrl)
 import           Text.Printf                (printf)
 import           UnliftIO.Async             (pooledForConcurrentlyN_)
 
@@ -36,29 +36,24 @@ addAndDownloadPodcast pool p0 = do
 downloadPodcast0 conn sess p = do
   S8.putStrLn . S8.pack
     $ printf "Downloading podcast info for %i from %s"
-      (unrefine . castId  $ p)
-      (unrefine . castUrl $ p)
-  r <- Sess.get sess . unrefine . castUrl $ p
+      (unCastId  $ p) (unCastUrl $ p)
+  r <- Sess.get sess . unCastUrl $ p
   let es = parseEpisodes p . TL.pack . SL8.unpack $ r ^. responseBody
   mapM_ (addEpisodeMaybe conn) es
 
 downloadEpisode0 conn sess e = do
   S8.putStrLn . S8.pack
     $ printf "Downloading episode %i for podcast %i from %s"
-      (unrefine . epId $ e)
-      (unrefine . castId . epCast $ e)
-      (unrefine . epUrl $ e)
-  r <- Sess.get sess . unrefine . epUrl $ e
+      (unEpId $ e) (unCastId . epCast $ e) (unEpUrl $ e)
+  r <- Sess.get sess . unEpUrl $ e
   SL8.writeFile file $ r ^. responseBody
   updateEpisode conn e { epDone = True }
   S8.putStrLn . S8.pack
     $ printf "Completed downloading episode %i for podcast %i from %s"
-      (unrefine . epId $ e)
-      (unrefine . castId . epCast $ e)
-      (unrefine . epUrl $ e)
+      (unEpId $ e) (unCastId . epCast $ e) (unEpUrl $ e)
   where file      = castIdStr ++ "." ++ epIdStr ++ ".mp3"
-        castIdStr = show . unrefine . castId . epCast $ e
-        epIdStr   = show . unrefine . epId $ e
+        castIdStr = show . unCastId . epCast $ e
+        epIdStr   = show . unEpId $ e
 
 downloadEpisodes pool es = do
   sess <- Sess.newSession
