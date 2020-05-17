@@ -35,9 +35,13 @@ repl0 parser = do
     Failure f -> do
       let (help, _, cols) = execFailure f $ ""
 
-      -- Show error if not "Invalid argument"
+      -- Show error if not "Invalid argument" and
+      -- "hide usage" is not present.
+      -- The later happens when no command is typed in properly.
       let error = renderHelpChunk cols helpError $ help
-      when (not $ "Invalid argument" `isInfixOf` error) $ putStrLn error
+      when (   not ("Invalid argument" `isInfixOf` error)
+            && not ("hide usage"       `isInfixOf` error))
+        $ putStrLn error
 
       -- Show suggestions if any
       case unChunk . helpSuggestions $ help of
