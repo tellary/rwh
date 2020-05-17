@@ -1,5 +1,10 @@
-{-# LANGUAGE DeriveLift #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveLift            #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE TypeSynonymInstances  #-}
+
 module PodTypes
   ( Episode(..)
   , Podcast(..)
@@ -13,13 +18,38 @@ module PodTypes
   , unEpUrl
   ) where
 
+import Control.Monad              (unless)
+import Data.Maybe                 (fromJust, isJust)
+import Data.String                (IsString (fromString))
+import Data.Typeable              (typeOf)
 import Language.Haskell.TH        (Q, TExp)
 import Language.Haskell.TH.Syntax (Lift (..))
-import Refined                    (NonEmpty, Positive, Refined, refineTH,
-                                   unrefine)
+import Network.URI                (URI (uriAuthority, uriScheme),
+                                   URIAuth (uriRegName), parseURI)
+import Refined                    (Positive, Predicate (..), Refined, refineTH,
+                                   throwRefineOtherException, unrefine)
+import Text.Printf                (printf)
 
-type PodId  = Refined Positive Int
-type PodUrl = Refined NonEmpty String
+type PodId  = Refined Positive      Int
+type PodUrl = Refined HttpUrlString String
+
+data HttpUrlString = HttpUrlString
+
+instance Predicate HttpUrlString String where
+  validate p str = do
+    u <- case parseURI str of
+           Nothing -> throwRefineOtherException (typeOf p)
+                      . fromString $ printf "Can't parse '%s' as URI" str
+           Just u -> return u
+    let s = uriScheme u
+    unless (s `elem` ["http:", "https:"])
+      . throwEx
+      $ printf "'http:' or 'https:' scheme is expected but '%s' is found" s
+    unless (isJust . uriAuthority $ u)
+      . throwEx $ printf "Authority not found in '%s'" str
+    unless (not . null . uriRegName . fromJust . uriAuthority $ u)
+      . throwEx $ printf "Authority name not found in '%s'" str
+    where throwEx = throwRefineOtherException (typeOf p) . fromString
 
 data Podcast = Podcast
   { castId  :: PodId

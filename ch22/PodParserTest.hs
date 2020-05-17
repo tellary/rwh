@@ -8,7 +8,7 @@ import           Test.Hspec     (describe, hspec, it, shouldReturn)
 
 urls f
   = map (unrefine . epUrl)
-  . parseEpisodes $$(podcast 1 "ignore")
+  . parseEpisodes $$(podcast 1 "http://ignore")
   . TL.pack <$> readFile f
 
 main = hspec $ do
