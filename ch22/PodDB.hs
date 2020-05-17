@@ -4,6 +4,9 @@ module PodDB
   ( PodDBError(..)
   , addEpisodeMaybe
   , addPodcast
+  , deletePodcast
+  , deletePodcastEpisodes
+  , getPodcast
   , initDB
   , listPodcastEpisodesByDone
   , listPodcasts
@@ -48,6 +51,8 @@ sqlCreatePodcast = "CREATE TABLE podcast (\n\
                    \  id  INTEGER PRIMARY KEY AUTOINCREMENT,\n\
                    \  url VARCHAR(1024) NOT NULL UNIQUE)"
 
+sqlDeletePodcast = "DELETE FROM podcast WHERE id = ?"
+
 sqlCreateEpisode = "CREATE TABLE episode (\n\
                    \  id     INTEGER PRIMARY KEY AUTOINCREMENT,\n\
                    \  url    VARCHAR(1024) NOT NULL,\n\
@@ -59,6 +64,7 @@ sqlCreateEpisode = "CREATE TABLE episode (\n\
 sqlInsertPodcast = "INSERT INTO podcast(url) VALUES (?)"
 sqlUpdatePodcast = "UPDATE podcast SET url = ? WHERE id = ?"
 sqlListPodcasts  = "SELECT * FROM podcast"
+sqlGetPodcast    = "SELECT * FROM podcast WHERE id = ?"
 
 sqlInsertEpisode = "INSERT INTO episode (url, done, castId) VALUES (?, ?, ?)"
 sqlUpdateEpisode = "UPDATE episode\n\
@@ -67,6 +73,8 @@ sqlUpdateEpisode = "UPDATE episode\n\
 
 sqlListPodcastEpisodesByDone = "SELECT id, url, done FROM episode\n\
                                \WHERE castId = ? AND done = ?"
+
+sqlDeletePodcastEpisodes = "DELETE FROM episode WHERE castId = ?"
 
 data PodDBError
   = PodcastAlreadyExists PodUrl
@@ -116,8 +124,20 @@ updatePodcast conn p = do
     _ -> fail "Multiple podcast ids aren't possible"
 
 listPodcasts :: Connection -> IO [Podcast]
-listPodcasts conn = do
-  query_ conn sqlListPodcasts
+listPodcasts conn = query_ conn sqlListPodcasts
+
+getPodcast :: Connection -> PodId -> IO (Maybe Podcast)
+getPodcast conn id = do
+  ps <- query conn sqlGetPodcast [id]
+  case ps of
+    []  -> return Nothing
+    [p] -> return $ Just p
+    _   -> error $ "Found multiple podcast by id " ++ (show . unrefine $ id)
+
+deletePodcast conn p = do
+  execute conn sqlDeletePodcast [castId p]
+  c <- changes conn
+  if c > 0 then return True else return False
 
 {- | Adds new episode to the database.
 Quitely proceeds if episode with the same `(url, castId)` already exists.
@@ -149,3 +169,8 @@ listPodcastEpisodesByDone conn done p = do
   rows <- query conn sqlListPodcastEpisodesByDone (castId $ p, done)
   return $ map ep rows
   where ep (id, url, done) = Episode id url done p
+
+deletePodcastEpisodes conn p = do
+  execute conn sqlDeletePodcastEpisodes [castId p]
+  c <- changes conn
+  if c > 0 then return True else return False

@@ -24,7 +24,7 @@ import           PodTypes                   (Episode (epCast, epDone),
 import           Text.Printf                (printf)
 import           UnliftIO.Async             (pooledForConcurrentlyN_)
 
-numThreads = 10
+numThreads = 3
 
 addAndDownloadPodcast pool p0 = do
   sess <- Sess.newSession

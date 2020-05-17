@@ -3,17 +3,21 @@
 import Control.Exception      (Exception (displayException), SomeException,
                                handle)
 import Control.Monad          (forM, forM_)
+import Data.List              (isPrefixOf, isSuffixOf)
 import Data.Pool              (destroyAllResources, withResource)
 import Data.Semigroup         ((<>))
+import Database.SQLite.Simple (withTransaction)
 import Options.Applicative    (argument, command, idm, info, metavar, progDesc,
                                str)
 import OptParseREPL           (repl)
-import PodDB                  (initDB, listPodcastEpisodesByDone, listPodcasts,
+import PodDB                  (deletePodcast, deletePodcastEpisodes, getPodcast,
+                               initDB, listPodcastEpisodesByDone, listPodcasts,
                                mkPool)
 import PodDownload            (addAndDownloadPodcast, downloadEpisodes,
                                downloadPodcasts, numThreads)
 import PodTypes               (Podcast (Podcast), unCastId, unCastUrl)
 import Refined                (refineFail, refineTH)
+import System.Directory       (listDirectory, removeFile)
 import Text.Printf            (printf)
 
 data Command = Add String
@@ -47,8 +51,8 @@ cmds
      )
   <> command "delete"
      (info
-       (Delete <$> argument str (metavar "URL"))
-       (progDesc "delete podcast and its episodes")
+       (Delete <$> argument str (metavar "ID"))
+       (progDesc "delete podcast and its episodes by ID")
      )
   <> command "quit"
      (info
@@ -68,22 +72,35 @@ replLoop pool = do
              putStrLn $ displayException (e :: SomeException)
              replLoop pool)
     $ case cmd of
-        Add url  -> do
+        Add url   -> do
           addAndDownloadPodcast pool
             =<< Podcast $$(refineTH 666)
             <$> refineFail url
           replLoop pool
-        List     -> do
+        List      -> do
           ps <- withResource pool listPodcasts
           forM_ ps $ \p -> putStrLn $ printf "%i %s" (unCastId p) (unCastUrl p)
           replLoop pool
-        Update   -> do
+        Update    -> do
           ps <- withResource pool listPodcasts
           downloadPodcasts pool ps
           replLoop pool
-        Download -> do
+        Download  -> do
           es <- withResource pool $ \conn -> do
             ps <- listPodcasts conn
             fmap concat . forM ps $ listPodcastEpisodesByDone conn False
           downloadEpisodes pool es
-        Quit -> return ()
+          replLoop pool
+        Delete id -> do
+          -- We delete files after database changes are done, so that an
+          -- exception while deleting files rolls the database changes back.
+          withResource pool $ \conn -> withTransaction conn $ do
+            Just p <- getPodcast conn =<< (refineFail . read $ id)
+            deletePodcastEpisodes conn p
+            deletePodcast         conn p
+            mapM_ removeFile
+              =<< filter (".mp3"      `isSuffixOf`)
+              .   filter ((id ++ ".") `isPrefixOf`)
+              <$> listDirectory "."
+          replLoop pool
+        Quit      -> return ()
