@@ -3,7 +3,7 @@
 import Control.Exception      (Exception (displayException), SomeException,
                                handle)
 import Control.Monad          (forM, forM_)
-import Data.List              (isPrefixOf, isSuffixOf)
+import Data.List              (isPrefixOf, isSuffixOf, transpose)
 import Data.Pool              (destroyAllResources, withResource)
 import Data.Semigroup         ((<>))
 import Database.SQLite.Simple (withTransaction)
@@ -88,7 +88,8 @@ replLoop pool = do
         Download  -> do
           es <- withResource pool $ \conn -> do
             ps <- listPodcasts conn
-            fmap concat . forM ps $ listPodcastEpisodesByDone conn False
+            fmap (concat . transpose) . forM ps
+              $ listPodcastEpisodesByDone conn False
           downloadEpisodes pool es
           replLoop pool
         Delete id -> do
