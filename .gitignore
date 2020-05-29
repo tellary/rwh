@@ -6,3 +6,5 @@
 
 dist/
 *.db
+result*
+dist-newstyle/

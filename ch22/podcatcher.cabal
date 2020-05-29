@@ -1,0 +1,13 @@
+cabal-version:       >=1.10
+name:                podcatcher
+version:             0.1.0.0
+build-type:          Simple
+
+library
+  exposed-modules:     PodTypes
+  other-extensions:    OverloadedStrings, TemplateHaskell, DeriveLift,
+                       FlexibleInstances, MultiParamTypeClasses,
+                       TypeSynonymInstances, ScopedTypeVariables
+  build-depends:       base, bytestring, text, directory,
+                       template-haskell, refined, network-uri
+  default-language:    Haskell2010
