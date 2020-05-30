@@ -3,8 +3,10 @@
 *.dyn_o
 *.imports
 *.dyn_hi
-
 dist/
 *.db
 result*
 dist-newstyle/
+*.js_hi
+*.js_o
+cabal.project.local

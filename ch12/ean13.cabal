@@ -1,0 +1,14 @@
+cabal-version:       >=1.10
+name:                ean13
+version:             0.1.0.0
+author:              Ilya Silvestrov
+maintainer:          tellary@gmail.com
+build-type:          Simple
+extra-source-files:  README.md
+
+executable findean13
+  main-is:             findean13.hs
+  other-modules:       EAN13
+  build-depends:       base, mynetpbm, split, array, transformers, bytestring,
+                       containers, optparse-generic
+  default-language:    Haskell2010
