@@ -4,11 +4,11 @@ with (import (builtins.fetchTarball {
 }) {});
 let
   dontCheck = pkgs.haskell.lib.dontCheck;
-  pkgs1 = pkgs.haskell.packages.ghcjs.override {
+  ghcjs = pkgs.haskell.packages.ghcjs.override {
     overrides = self: super: {
       mynetpbm = super.callCabal2nix "mynetpbm" ../ch10 {};
       # Disabling tests for build speed
       QuickCheck = dontCheck super.QuickCheck;
     };
   };
-in pkgs1.callCabal2nix "ean13" ./. {}
+in ghcjs.callCabal2nix "ean13" ./. {}

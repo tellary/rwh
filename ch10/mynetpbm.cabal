@@ -6,11 +6,11 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     NetpbmCommon, Parser, PGM, PPM, PPM2PGM
-  build-depends:       base, transformers >=0.5 && <0.6, bytestring >=0.10 && <0.11, array >=0.5 && <0.6, split >=0.2 && <0.3
+  build-depends:       base, transformers, bytestring, array, split
   default-language:    Haskell2010
 
 executable ppmtopgm
   main-is:             ppmtopgm.hs
   other-modules:       NetpbmCommon, Parser, PGM, PPM, PPM2PGM
-  build-depends:       base, transformers >=0.5 && <0.6, bytestring >=0.10 && <0.11, array >=0.5 && <0.6, split >=0.2 && <0.3, optparse-generic
+  build-depends:       base, transformers, bytestring, array, split, optparse-generic
   default-language:    Haskell2010
