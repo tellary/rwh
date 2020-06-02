@@ -10,3 +10,4 @@ dist-newstyle/
 *.js_hi
 *.js_o
 cabal.project.local
+*.jsexe/

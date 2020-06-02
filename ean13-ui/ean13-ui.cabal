@@ -7,8 +7,9 @@ build-type:          Simple
 
 executable findean13-ui
   main-is:             Main.hs
+  other-modules:       Helper
   build-depends:       base, ghcjs-base, miso, split, array,
                        transformers, bytestring,
                        containers, optparse-generic,
-                       JuicyPixels
+                       JuicyPixels, base-encoding, attoparsec
   default-language:    Haskell2010

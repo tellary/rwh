@@ -1,28 +1,31 @@
-{-# LANGUAGE OverloadedStrings #-}
-
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
+import Codec.Picture           (imageHeight)
 import Control.Concurrent.MVar (newEmptyMVar, putMVar, readMVar)
-import Miso                    (App (..), View, asyncCallback, br_, consoleLog,
-                                defaultEvents, div_, getElementById, id_, img_,
-                                input_, noEff, onChange, src_, startApp, text,
-                                type_, (<#))
-import Miso.String             (MisoString)
+import Control.Exception       (SomeException, catch, displayException)
+import Helper                  (parseImage)
+import Miso                    (App (..), View, accept_, asyncCallback, br_,
+                                consoleLog, defaultEvents, div_, getElementById,
+                                id_, img_, input_, noEff, onChange, src_,
+                                startApp, text, type_, (<#))
+import Miso.String             (MisoString, fromMisoString, ms)
 
 import GHCJS.Foreign.Callback  (Callback)
 import GHCJS.Types             (JSVal)
 
 data Model
-  = Model
-  { img :: Maybe MisoString
-  } deriving (Eq, Show)
+  = Image MisoString
+  | Error MisoString
+  deriving (Eq, Show)
 
 data Action
   = ReadFile
   | NoOp
-  | SetContent MisoString
+  | SetContent Model
 
-app = App { model         = Model Nothing
+app = App { model         = Error "No barcode image loaded"
           , initialAction = NoOp
           , update        = updateModel
           , view          = viewModel
@@ -42,26 +45,41 @@ updateModel ReadFile m = m <# do
   setOnLoad reader =<< do
     asyncCallback $ do
       r <- getResult reader
-      putMVar mvar r
+      catch
+        (do
+          let img = parseImage . fromMisoString $ r
+          case img of
+            Right img -> do
+              consoleLog . ms $ "Loaded image height: "
+                ++ (show . imageHeight $ img)
+              putMVar mvar $ Image r
+            Left err  -> do
+              putMVar mvar . Error . ms $ err)
+        (\(e :: SomeException) -> do
+            let msg = "Failed to load image: " ++ displayException e
+            consoleLog . ms $ msg
+            putMVar mvar . Error . ms $ msg
+        )
   readDataURL reader file
   SetContent <$> readMVar mvar
-updateModel (SetContent c) m = noEff m { img = Just c }
+updateModel (SetContent m) _ = noEff m
 updateModel NoOp m = noEff m
 
 viewModel :: Model -> View Action
-viewModel (Model img)
+viewModel m
   = div_ [] $ [
     "Barcode recognition"
     , br_ []
     , input_ [ id_ "fileReader"
              , type_ "file"
+             , accept_ "image/*"
              , onChange (const ReadFile)
              ]
     , br_ []
-    ] ++ imgView img
+    ] ++ imgView m
   where
-    imgView Nothing    = [text "No barcode image loaded"]
-    imgView (Just img) = [img_ [src_ img]]
+    imgView (Error err) = [text err]
+    imgView (Image img) = [img_ [src_ img]]
 
 foreign import javascript unsafe "$r = new FileReader();"
   newReader :: IO JSVal
