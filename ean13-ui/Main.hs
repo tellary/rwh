@@ -2,18 +2,22 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
-import Codec.Picture           (imageHeight)
-import Control.Concurrent.MVar (newEmptyMVar, putMVar, readMVar)
-import Control.Exception       (SomeException, catch, displayException)
-import Helper                  (parseImage)
-import Miso                    (App (..), View, accept_, asyncCallback, br_,
-                                consoleLog, defaultEvents, div_, getElementById,
-                                id_, img_, input_, noEff, onChange, src_,
-                                startApp, text, type_, (<#))
-import Miso.String             (MisoString, fromMisoString, ms)
+import           Codec.Picture           (imageData, imageHeight, imageWidth)
+import           Control.Concurrent.MVar (newEmptyMVar, putMVar, readMVar)
+import           Control.Exception       (SomeException, catch,
+                                          displayException)
+import qualified Data.Vector.Storable    as V
+import           Helper                  (parseImage)
+import           Miso                    (App (..), View, accept_,
+                                          asyncCallback, br_, consoleLog,
+                                          defaultEvents, div_, getElementById,
+                                          id_, img_, input_, noEff, onChange,
+                                          src_, startApp, text, type_, (<#))
+import           Miso.String             (MisoString, fromMisoString, ms)
+import           PPM                     (newPPM)
 
-import GHCJS.Foreign.Callback  (Callback)
-import GHCJS.Types             (JSVal)
+import           GHCJS.Foreign.Callback  (Callback)
+import           GHCJS.Types             (JSVal)
 
 data Model
   = Image MisoString
@@ -52,6 +56,11 @@ updateModel ReadFile m = m <# do
             Right img -> do
               consoleLog . ms $ "Loaded image height: "
                 ++ (show . imageHeight $ img)
+              let ppmE = newPPM (imageWidth img) (imageHeight img) 255
+                         . V.toList . imageData $ img
+              case ppmE of
+                Right ppm -> consoleLog . ms $ "Loaded PPM: " ++ show ppm
+                Left  err -> consoleLog . ms $ "Failed to load PPM: " ++ err
               putMVar mvar $ Image r
             Left err  -> do
               putMVar mvar . Error . ms $ err)
