@@ -328,5 +328,5 @@ readEAN13File0 r n t f = do
   ppmFileE <- runExceptT ppmFileT
   return $ do
     ppmFile <- ppmFileE
-    maybe (Left $ "No EAN13 found in " ++ f) Right $ findEAN13 ppmFile
+    maybe (Left $ "No EAN13 found in " ++ f) Right $ findEAN13_0 r n t ppmFile
   where ppmFileT = fmap fst . P.parseIO ppm $ L.readFile f

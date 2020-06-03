@@ -1,14 +1,21 @@
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module Helper where
+module Helper (ean13) where
 
-import Codec.Base64               (decode)
-import Codec.Picture              (Image, PixelRGB8, convertRGB8, decodeImage)
-import Data.Attoparsec.ByteString as P
-import Data.ByteString            (ByteString, isInfixOf)
-import Data.Char                  (chr)
-import GHC.Stack                  (HasCallStack)
+import           Codec.Base64               (decode)
+import           Codec.Picture              (imageData, imageHeight, imageWidth)
+import           Codec.Picture              (Image, PixelRGB8, convertRGB8,
+                                             decodeImage)
+import           Data.Attoparsec.ByteString as P (IResult (Done, Fail, Partial),
+                                                  Parser, parse, string,
+                                                  takeByteString, takeWhile)
+import           Data.ByteString            (ByteString, isInfixOf)
+import           Data.Char                  (chr)
+import qualified Data.Vector.Storable       as V (toList)
+import           EAN13                      (findEAN13_0)
+import           GHC.Stack                  (HasCallStack)
+import           PPM                        (newPPM)
 
 dataTypeP = P.takeWhile $ \w -> chr (fromIntegral w) /= ';'
 dataUrlP :: Parser (ByteString, ByteString)
@@ -26,3 +33,11 @@ parseImage r =
           = fmap convertRGB8 $ decodeImage =<< bs
           | otherwise = Left "Not an image"
           where bs = decode b64
+
+ean13 :: (HasCallStack, Integral d, Ord e, Fractional e)
+      => ByteString -> Either String (e, [d])
+ean13 r = do
+  img <- parseImage r
+  ppm <- newPPM (imageWidth img) (imageHeight img) 255
+         . V.toList . imageData $ img
+  maybe (Left $ "No EAN13 found") Right . findEAN13_0 3 3 0.4 $ ppm

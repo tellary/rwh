@@ -1,23 +1,19 @@
 {-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
-import           Codec.Picture           (imageData, imageHeight, imageWidth)
-import           Control.Concurrent.MVar (newEmptyMVar, putMVar, readMVar)
-import           Control.Exception       (SomeException, catch,
-                                          displayException)
-import qualified Data.Vector.Storable    as V
-import           Helper                  (parseImage)
-import           Miso                    (App (..), View, accept_,
-                                          asyncCallback, br_, consoleLog,
-                                          defaultEvents, div_, getElementById,
-                                          id_, img_, input_, noEff, onChange,
-                                          src_, startApp, text, type_, (<#))
-import           Miso.String             (MisoString, fromMisoString, ms)
-import           PPM                     (newPPM)
-
-import           GHCJS.Foreign.Callback  (Callback)
-import           GHCJS.Types             (JSVal)
+import Control.Concurrent.MVar (newEmptyMVar, putMVar, readMVar)
+import Control.Exception       (SomeException, catch, displayException)
+import Helper                  (ean13)
+import Miso                    (App (..), View, accept_, asyncCallback, br_,
+                                consoleLog, defaultEvents, div_, getElementById,
+                                id_, img_, input_, noEff, onChange, src_,
+                                startApp, text, type_, (<#))
+import Miso.String             (MisoString, fromMisoString, ms)
+import GHCJS.Foreign.Callback  (Callback)
+import GHCJS.Types             (JSVal)
+import Text.Printf             (printf)
 
 data Model
   = Image MisoString
@@ -51,16 +47,10 @@ updateModel ReadFile m = m <# do
       r <- getResult reader
       catch
         (do
-          let img = parseImage . fromMisoString $ r
-          case img of
-            Right img -> do
-              consoleLog . ms $ "Loaded image height: "
-                ++ (show . imageHeight $ img)
-              let ppmE = newPPM (imageWidth img) (imageHeight img) 255
-                         . V.toList . imageData $ img
-              case ppmE of
-                Right ppm -> consoleLog . ms $ "Loaded PPM: " ++ show ppm
-                Left  err -> consoleLog . ms $ "Failed to load PPM: " ++ err
+          case ean13 . fromMisoString $ r of
+            Right (err :: Double, ean13 :: [Int]) -> do
+              consoleLog . ms @String
+                $ printf "Found EAN13: %s\nError: %f" (show ean13) err
               putMVar mvar $ Image r
             Left err  -> do
               putMVar mvar . Error . ms $ err)
