@@ -58,7 +58,7 @@ t6 = assert
      ((encodeEAN13 $ take 12 ean13_2) == (Just $ concat ean13_2_parts))
      "encodeEAN13 succeed"
 
-whiteRectPPM = fmap fst $ P.parseIO ppm $ L.readFile "../netpbm/white_rect.ppm"
+whiteRectPPM = fmap fst $ P.parseIO ppm $ L.readFile "../ch10/white_rect.ppm"
 whiteRectPGM = ppmToPGM <$> whiteRectPPM
 
 whiteRectThreshold = threshold 0.5 <$> imageData <$> whiteRectPGM
@@ -159,6 +159,15 @@ t13 = assert
        (fmap snd <$> ean13_2_bestDigits))
       "`ean_13_2_with_error_xs` best sequence is still `ean_13_2`"
 
+singleBarError_xs = "101000110101001110111110100010110010111001110101010110011010011101001110101110010010001010000101"
+singleBarError_seqs
+  = digitSequencesByError . consumeCandidates
+    . candidateDigits 3 $ singleBarError_xs :: [Sequence Rational Int]
+
+singleBarErrorIsOne95th = assert
+                      ((sequenceError $ head singleBarError_seqs) == 1/95)
+                      "Bar code with one extra bar has error 1/95"
+
 -- `ean13_2`'s 11 candidate digits, w/o the check digit
 (ean13_2_ds11, ean13_2_checks') = splitAt 11 ean13_2_ds
   :: (CandidateDigits Rational Int, CandidateDigits Rational Int)
@@ -184,7 +193,7 @@ t16 = assert
       ((head . solve 1000 $ ean13_2_with_error_xs) == ean13_2)
       "Best solution for `ean13_2_with_error_xs` is `ean13_2"
 
-ean13_2_ppm = fmap fst . P.parseIO ppm $ L.readFile "../netpbm/ean13_2.ppm"
+ean13_2_ppm = fmap fst . P.parseIO ppm $ L.readFile "../ch10/ean13_2.ppm"
 
 t19 = do
   Just (_, ean13) <- findEAN13 <$> ean13_2_ppm

@@ -16,16 +16,24 @@ import GHCJS.Types             (JSVal)
 import Text.Printf             (printf)
 
 data Model
-  = Image MisoString
-  | Error MisoString
+  = ErrorModel          MisoString
+  | ResultModel         Result
+  | BadImageResultModel Result
   deriving (Eq, Show)
+
+data Result
+  = Result
+  { resultImage :: MisoString
+  , resultEan13 :: [Int]
+  , resultError :: Double
+  } deriving (Eq, Show)
 
 data Action
   = ReadFile
   | NoOp
   | SetContent Model
 
-app = App { model         = Error "No barcode image loaded"
+app = App { model         = ErrorModel "No barcode image loaded"
           , initialAction = NoOp
           , update        = updateModel
           , view          = viewModel
@@ -51,13 +59,16 @@ updateModel ReadFile m = m <# do
             Right (err :: Double, ean13 :: [Int]) -> do
               consoleLog . ms @String
                 $ printf "Found EAN13: %s\nError: %f" (show ean13) err
-              putMVar mvar $ Image r
+              if err < 0.15 -- 14.25 extra lines in a barcode of 95 lines
+                then putMVar mvar . ResultModel $ Result r ean13 err
+                else putMVar mvar . BadImageResultModel $ Result r ean13 err
             Left err  -> do
-              putMVar mvar . Error . ms $ err)
+              putMVar mvar . ErrorModel . ms $ err)
         (\(e :: SomeException) -> do
-            let msg = "Failed to load image: " ++ displayException e
+            let msg = "Failed to load image or process EAN13: "
+                      ++ displayException e
             consoleLog . ms $ msg
-            putMVar mvar . Error . ms $ msg
+            putMVar mvar . ErrorModel . ms $ msg
         )
   readDataURL reader file
   SetContent <$> readMVar mvar
@@ -77,8 +88,18 @@ viewModel m
     , br_ []
     ] ++ imgView m
   where
-    imgView (Error err) = [text err]
-    imgView (Image img) = [img_ [src_ img]]
+    imgView (ErrorModel err) = [text err]
+    imgView (ResultModel (Result img ean13 err)) =
+      [ text . ms $ "Barcode: " ++ show ean13, br_ []
+      , text . ms $ "Error: "   ++ show err, br_ []
+      , img_ [src_ img]
+      ]
+    imgView (BadImageResultModel (Result img ean13 err)) =
+      [ text        "ERROR TOO LARGE, barcode may be innacurate", br_ []
+      , text . ms $ "Barcode: " ++ show ean13, br_ []
+      , text . ms $ "Error: "   ++ show err, br_ []
+      , img_ [src_ img]
+      ]
 
 foreign import javascript unsafe "$r = new FileReader();"
   newReader :: IO JSVal

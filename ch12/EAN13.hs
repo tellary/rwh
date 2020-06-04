@@ -78,6 +78,8 @@ encodeRight d = rightCodes ! d
 
 data Bit = Zero | One deriving (Eq, Show)
 
+-- 0.4 threshold means that a pixel should be 40% black and 60% white
+-- to be contsidered black.
 threshold :: (Ix k, Integral a, Ord r, Fractional r) =>
   r -> Array k a -> Array k Bit
 threshold r a = binary <$> a
@@ -107,8 +109,12 @@ scaledRuns rs = map divide rs
 scaledRuns1 :: (Eq a, Fractional b) => [a] -> [b]
 scaledRuns1 = scaledRuns . runs
 
-distanceSq a b = sum $ zipWith sqDelta a b
-  where sqDelta x y = (x - y)^2
+digitError a b = sum $ zipWith delta a b
+  -- This is normalized so that a correct bar code with a single extra line
+  -- has an error of 1/95. An error of 1 should represent a situation of 95
+  -- extra bars  while a barcode has 95 bars total.
+  -- See `singleBarErrorIsOne95th` in `EAN13QC`.
+  where delta x y = (28/3/95)*abs (x - y)
 
 leftOddSRs, leftEvenSRs, rightSRs, paritySRs :: Fractional a => [[a]]
 leftOddSRs  = map scaledRuns1 $ elems leftOddCodes
@@ -122,7 +128,7 @@ bestDigits digitSRs input =
   sortBy (comparing fst)
   $ zip digitScores digits
   where digits      = [0..9]
-        digitScores = map (distanceSq $ input) digitSRs
+        digitScores = map (digitError $ input) digitSRs
 
 data Parity a = Odd a | Even a | None a
                 deriving (Show, Eq, Functor)
@@ -306,7 +312,7 @@ idxParts n h = fmap part [0..n']
 
 solvePGM0 :: (Integral d, Ord e, Fractional e)
   => Int -- number of rows from image to take
-  -> Int -- number of candidate digits in each raw
+  -> Int -- number of candidate digits in each row
   -> e   -- black/white bit threshold
   -> Greymap -> [Sequence e d]
 solvePGM0 r n t pgm =

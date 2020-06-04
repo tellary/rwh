@@ -19,7 +19,8 @@ import           PPM                        (newPPM)
 
 dataTypeP = P.takeWhile $ \w -> chr (fromIntegral w) /= ';'
 dataUrlP :: Parser (ByteString, ByteString)
-dataUrlP  = P.string "data:" *> ((,) <$> dataTypeP <* P.string ";base64," <*> P.takeByteString)
+dataUrlP  = P.string "data:" *>
+            ((,) <$> dataTypeP <* P.string ";base64," <*> P.takeByteString)
 
 parseImage :: HasCallStack => ByteString -> Either String (Image PixelRGB8)
 parseImage r =
@@ -40,4 +41,8 @@ ean13 r = do
   img <- parseImage r
   ppm <- newPPM (imageWidth img) (imageHeight img) 255
          . V.toList . imageData $ img
-  maybe (Left $ "No EAN13 found") Right . findEAN13_0 3 3 0.4 $ ppm
+  maybe (Left $ "No EAN13 found") Right
+    -- Scanning 3 rows, considering 3 candidate digits with
+    -- a 55% black threshold. These parameters are manually tuned
+    -- on files located in the `samples` folder.
+    . findEAN13_0 3 3 0.55 $ ppm
