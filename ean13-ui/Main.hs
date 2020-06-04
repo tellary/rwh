@@ -5,7 +5,7 @@ module Main where
 
 import Control.Concurrent.MVar (newEmptyMVar, putMVar, readMVar)
 import Control.Exception       (SomeException, catch, displayException)
-import Helper                  (ean13)
+import Helper                  (ean13, parseImage)
 import Miso                    (App (..), View, accept_, asyncCallback, br_,
                                 consoleLog, defaultEvents, div_, getElementById,
                                 id_, img_, input_, noEff, onChange, src_,
@@ -15,15 +15,24 @@ import GHCJS.Foreign.Callback  (Callback)
 import GHCJS.Types             (JSVal)
 import Text.Printf             (printf)
 
+newtype ImageString = ImageString { imageStr :: MisoString } deriving (Eq, Show)
+
 data Model
-  = ErrorModel          MisoString
-  | ResultModel         Result
-  | BadImageResultModel Result
+  = ErrorModel           MisoString
+  | NoBarcodeModel       NoBarcode
+  | ResultModel          Result
+  | HighErrorResultModel Result
   deriving (Eq, Show)
+
+data NoBarcode
+  = NoBarcode
+  { noBarcodeImage :: ImageString
+  , noBarcodeError :: MisoString
+  } deriving (Eq, Show)
 
 data Result
   = Result
-  { resultImage :: MisoString
+  { resultImage :: ImageString
   , resultEan13 :: [Int]
   , resultError :: Double
   } deriving (Eq, Show)
@@ -52,17 +61,22 @@ updateModel ReadFile m = m <# do
   mvar <- newEmptyMVar
   setOnLoad reader =<< do
     asyncCallback $ do
-      r <- getResult reader
+      r <- ImageString <$> getResult reader
       catch
         (do
-          case ean13 . fromMisoString $ r of
-            Right (err :: Double, ean13 :: [Int]) -> do
-              consoleLog . ms @String
-                $ printf "Found EAN13: %s\nError: %f" (show ean13) err
-              if err < 0.15 -- 14.25 extra lines in a barcode of 95 lines
-                then putMVar mvar . ResultModel $ Result r ean13 err
-                else putMVar mvar . BadImageResultModel $ Result r ean13 err
-            Left err  -> do
+          case parseImage . fromMisoString . imageStr $ r of
+            Right img ->
+              case ean13 img of
+                Right (err :: Double, ean13 :: [Int]) -> do
+                  consoleLog . ms @String
+                    $ printf "Found EAN13: %s\nError: %f" (show ean13) err
+                  if err < 0.15 -- 14.25 extra lines in a barcode of 95 lines
+                    then putMVar mvar . ResultModel $ Result r ean13 err
+                    else putMVar mvar
+                         . HighErrorResultModel $ Result r ean13 err
+                Left err ->
+                  putMVar mvar . NoBarcodeModel $ NoBarcode r (ms $ err)
+            Left err ->
               putMVar mvar . ErrorModel . ms $ err)
         (\(e :: SomeException) -> do
             let msg = "Failed to load image or process EAN13: "
@@ -89,16 +103,20 @@ viewModel m
     ] ++ imgView m
   where
     imgView (ErrorModel err) = [text err]
+    imgView (NoBarcodeModel (NoBarcode img err)) =
+      [ text err, br_ []
+      , img_ [src_ . imageStr $ img]
+      ]
     imgView (ResultModel (Result img ean13 err)) =
       [ text . ms $ "Barcode: " ++ show ean13, br_ []
       , text . ms $ "Error: "   ++ show err, br_ []
-      , img_ [src_ img]
+      , img_ [src_ . imageStr $ img]
       ]
-    imgView (BadImageResultModel (Result img ean13 err)) =
+    imgView (HighErrorResultModel (Result img ean13 err)) =
       [ text        "ERROR TOO LARGE, barcode may be innacurate", br_ []
       , text . ms $ "Barcode: " ++ show ean13, br_ []
       , text . ms $ "Error: "   ++ show err, br_ []
-      , img_ [src_ img]
+      , img_ [src_ . imageStr $ img]
       ]
 
 foreign import javascript unsafe "$r = new FileReader();"

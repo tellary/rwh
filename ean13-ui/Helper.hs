@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module Helper (ean13) where
+module Helper (ean13, parseImage) where
 
 import           Codec.Base64               (decode)
 import           Codec.Picture              (imageData, imageHeight, imageWidth)
@@ -36,9 +36,8 @@ parseImage r =
           where bs = decode b64
 
 ean13 :: (HasCallStack, Integral d, Ord e, Fractional e)
-      => ByteString -> Either String (e, [d])
-ean13 r = do
-  img <- parseImage r
+      => Image PixelRGB8 -> Either String (e, [d])
+ean13 img = do
   ppm <- newPPM (imageWidth img) (imageHeight img) 255
          . V.toList . imageData $ img
   maybe (Left $ "No EAN13 found") Right
