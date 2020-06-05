@@ -3,12 +3,13 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
+import Control.Concurrent      (ThreadId, killThread, myThreadId)
 import Control.Concurrent.MVar (MVar, newEmptyMVar, putMVar, readMVar)
 import Control.Exception       (SomeException, catch, displayException)
 import GHCJS.Foreign.Callback  (Callback)
 import GHCJS.Types             (JSVal)
 import Helper                  (ean13, parseImage)
-import Miso                    (App (..), View, accept_, asyncCallback,
+import Miso                    (App (..), Effect, View, accept_, asyncCallback,
                                 batchEff, br_, consoleLog, defaultEvents, div_,
                                 getElementById, id_, img_, input_, noEff,
                                 onChange, src_, startApp, text, type_, (<#))
@@ -20,8 +21,9 @@ newtype ImageString
 
 data Model
   = Model
-  { image  :: Loading ImageString
-  , result :: Loading Result
+  { threadId :: Loading ThreadId
+  , image    :: Loading ImageString
+  , result   :: Loading Result
   } deriving (Eq, Show)
 
 data Loading a
@@ -40,10 +42,11 @@ data EAN13
 data Action
   = ReadFile
   | NoOp
-  -- `ShowProgress` has two `MVar` to carry them out `ReadFile`
-  -- action handler and "batch" them into separate events
+  -- `ShowProgress` has several `MVar`s to carry them out of the `ReadFile`
+  -- handler and "batch" them into separate events in the
   -- `ShowProgress` handler.
-  | ShowProgress (MVar ImageString) (MVar Result)
+  | ShowProgress (MVar ThreadId) (MVar ImageString) (MVar Result)
+  | SetThread ThreadId
   | SetImage  ImageString
   | SetResult Result
 
@@ -58,6 +61,7 @@ app = App { model         = Nothing
 
 main = startApp app
 
+updateModel :: Action -> Maybe Model -> Effect Action (Maybe Model)
 updateModel ReadFile m = m <# do
   consoleLog "ReadFile"
   fileReaderInput <- getElementById "fileReader"
@@ -65,8 +69,26 @@ updateModel ReadFile m = m <# do
   reader          <- newReader
   imageMVar       <- newEmptyMVar
   resultMVar      <- newEmptyMVar
+  threadMVar      <- newEmptyMVar
+  maybe (return ())
+    (\model ->
+       -- We keep track of a thread that does heavy lifting and
+       -- try to kill it before starting next barcode recognition job.
+       -- This takes care of a scenario when a long running job is started,
+       -- then we choose a different image that's processed faster and
+       -- a result of the faster processing is later overridden when the
+       -- long running job completes.
+       case threadId model of
+         Loaded tid -> do
+           consoleLog . ms $ "Killing existing job " ++ show tid
+           killThread tid
+         _ -> return ()
+    ) m
   setOnLoad reader =<< do
     asyncCallback $ do
+      thId <- myThreadId
+      putMVar threadMVar thId
+      consoleLog . ms $ "myThreadId: " ++ show thId
       r <- ImageString <$> getResult reader
       putMVar imageMVar r
       catch
@@ -91,12 +113,21 @@ updateModel ReadFile m = m <# do
             putMVar resultMVar . Error . ms $ msg
         )
   readDataURL reader file
-  return $ ShowProgress imageMVar resultMVar
-updateModel (ShowProgress imageMVar resultMVar) _
-  = batchEff (Just (Model Loading Loading))
-    [ SetImage  <$> readMVar imageMVar
+  return $ ShowProgress threadMVar imageMVar resultMVar
+updateModel (ShowProgress threadMVar imageMVar resultMVar) Nothing
+  = batchEff (Just (Model Loading Loading Loading))
+    [ SetThread <$> readMVar threadMVar
+    , SetImage  <$> readMVar imageMVar
     , SetResult <$> readMVar resultMVar
     ]
+updateModel (ShowProgress threadMVar imageMVar resultMVar) (Just m)
+  = batchEff (Just m { image = Loading, result = Loading })
+    [ SetThread <$> readMVar threadMVar
+    , SetImage  <$> readMVar imageMVar
+    , SetResult <$> readMVar resultMVar
+    ]
+updateModel (SetThread threadId) (Just m)
+  = noEff (Just m { threadId = Loaded threadId })
 updateModel (SetImage  img) (Just m) = noEff (Just m { image  = Loaded img })
 updateModel (SetResult r  ) (Just m) = noEff (Just m { result = Loaded r   })
 updateModel NoOp m       = noEff m
@@ -117,16 +148,16 @@ viewModel m
   where
     imgView Nothing =
       [ text "No barcode image choosen" ]
-    imgView (Just (Model Loading      Loading)) =
+    imgView (Just (Model _ Loading      Loading)) =
       [ text "Loading image ..." ]
-    imgView (Just (Model (Loaded img) Loading)) =
+    imgView (Just (Model _ (Loaded img) Loading)) =
       [ text "Recognizing EAN13 barcode ...", br_ []
       , img_ [src_ . imageStr $ img]
       ]
-    imgView (Just (Model Loading      (Loaded result))) =
+    imgView (Just (Model _ Loading      (Loaded result))) =
       eanView result ++
       [ text "Image is still loading (weird) ..." ]
-    imgView (Just (Model (Loaded img) (Loaded result))) =
+    imgView (Just (Model _ (Loaded img) (Loaded result))) =
       eanView result ++
       [ img_ [src_ . imageStr $ img] ]
     eanView (Error err) =
