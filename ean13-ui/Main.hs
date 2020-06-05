@@ -19,8 +19,7 @@ newtype ImageString
   = ImageString { imageStr :: MisoString } deriving (Eq, Show)
 
 data Model
-  = NoFileChoosen
-  | Model
+  = Model
   { image  :: Loading ImageString
   , result :: Loading Result
   } deriving (Eq, Show)
@@ -48,7 +47,7 @@ data Action
   | SetImage  ImageString
   | SetResult Result
 
-app = App { model         = NoFileChoosen
+app = App { model         = Nothing
           , initialAction = NoOp
           , update        = updateModel
           , view          = viewModel
@@ -94,15 +93,16 @@ updateModel ReadFile m = m <# do
   readDataURL reader file
   return $ ShowProgress imageMVar resultMVar
 updateModel (ShowProgress imageMVar resultMVar) _
-  = batchEff (Model Loading Loading)
+  = batchEff (Just (Model Loading Loading))
     [ SetImage  <$> readMVar imageMVar
     , SetResult <$> readMVar resultMVar
     ]
-updateModel (SetImage  img) m = noEff m { image  = Loaded img }
-updateModel (SetResult r  ) m = noEff m { result = Loaded r   }
-updateModel NoOp m = noEff m
+updateModel (SetImage  img) (Just m) = noEff (Just m { image  = Loaded img })
+updateModel (SetResult r  ) (Just m) = noEff (Just m { result = Loaded r   })
+updateModel NoOp m       = noEff m
+updateModel _    Nothing = noEff Nothing
 
-viewModel :: Model -> View Action
+viewModel :: Maybe Model -> View Action
 viewModel m
   = div_ [] $ [
     "Barcode recognition"
@@ -115,18 +115,18 @@ viewModel m
     , br_ []
     ] ++ imgView m
   where
-    imgView NoFileChoosen =
+    imgView Nothing =
       [ text "No barcode image choosen" ]
-    imgView (Model Loading      Loading) =
+    imgView (Just (Model Loading      Loading)) =
       [ text "Loading image ..." ]
-    imgView (Model (Loaded img) Loading) =
+    imgView (Just (Model (Loaded img) Loading)) =
       [ text "Recognizing EAN13 barcode ...", br_ []
       , img_ [src_ . imageStr $ img]
       ]
-    imgView (Model Loading      (Loaded result)) =
+    imgView (Just (Model Loading      (Loaded result))) =
       eanView result ++
       [ text "Image is still loading (weird) ..." ]
-    imgView (Model (Loaded img) (Loaded result)) =
+    imgView (Just (Model (Loaded img) (Loaded result))) =
       eanView result ++
       [ img_ [src_ . imageStr $ img] ]
     eanView (Error err) =
