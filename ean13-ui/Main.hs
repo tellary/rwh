@@ -6,6 +6,7 @@ module Main where
 import Control.Concurrent      (ThreadId, killThread, myThreadId)
 import Control.Concurrent.MVar (MVar, newEmptyMVar, putMVar, readMVar)
 import Control.Exception       (SomeException, catch, displayException)
+import GHCJS.Foreign           (isUndefined)
 import GHCJS.Foreign.Callback  (Callback)
 import GHCJS.Types             (JSVal)
 import Helper                  (ean13, parseImage)
@@ -49,8 +50,10 @@ data Action
   | SetThread ThreadId
   | SetImage  ImageString
   | SetResult Result
+  | SetError  MisoString
 
-app = App { model         = Nothing
+noBarcodeChosen = "No barcode image chosen"
+app = App { model         = Left noBarcodeChosen
           , initialAction = NoOp
           , update        = updateModel
           , view          = viewModel
@@ -61,16 +64,13 @@ app = App { model         = Nothing
 
 main = startApp app
 
-updateModel :: Action -> Maybe Model -> Effect Action (Maybe Model)
-updateModel ReadFile m = m <# do
-  consoleLog "ReadFile"
-  fileReaderInput <- getElementById "fileReader"
-  file            <- getFile fileReaderInput
+readBarcode :: Either MisoString Model -> JSVal -> IO Action
+readBarcode m file = do
   reader          <- newReader
   imageMVar       <- newEmptyMVar
   resultMVar      <- newEmptyMVar
   threadMVar      <- newEmptyMVar
-  maybe (return ())
+  either (const $ return ())
     (\model ->
        -- We keep track of a thread that does heavy lifting and
        -- try to kill it before starting next barcode recognition job.
@@ -114,26 +114,47 @@ updateModel ReadFile m = m <# do
         )
   readDataURL reader file
   return $ ShowProgress threadMVar imageMVar resultMVar
-updateModel (ShowProgress threadMVar imageMVar resultMVar) Nothing
-  = batchEff (Just (Model Loading Loading Loading))
-    [ SetThread <$> readMVar threadMVar
-    , SetImage  <$> readMVar imageMVar
-    , SetResult <$> readMVar resultMVar
-    ]
-updateModel (ShowProgress threadMVar imageMVar resultMVar) (Just m)
-  = batchEff (Just m { image = Loading, result = Loading })
-    [ SetThread <$> readMVar threadMVar
-    , SetImage  <$> readMVar imageMVar
-    , SetResult <$> readMVar resultMVar
-    ]
-updateModel (SetThread threadId) (Just m)
-  = noEff (Just m { threadId = Loaded threadId })
-updateModel (SetImage  img) (Just m) = noEff (Just m { image  = Loaded img })
-updateModel (SetResult r  ) (Just m) = noEff (Just m { result = Loaded r   })
-updateModel NoOp m       = noEff m
-updateModel _    Nothing = noEff Nothing
 
-viewModel :: Maybe Model -> View Action
+sizeLimit :: Int
+sizeLimit = 1024*256
+
+updateModel :: Action
+            -> Either MisoString Model
+            -> Effect Action (Either MisoString Model)
+updateModel ReadFile m = m <# do
+  fileReaderInput <- getElementById "fileReader"
+  file            <- getFile fileReaderInput
+  s               <- getSize file
+  case s of
+    Nothing   -> return . SetError $ noBarcodeChosen
+    Just size -> do
+      consoleLog . ms $ "File size: " ++ show s
+      if size > sizeLimit
+        then return . SetError . ms
+             $ "Image file is too big, 512k max. It's "
+             ++ show (size `div` 1024) ++ "k."
+        else readBarcode m file
+updateModel (SetError err) _ = noEff (Left err)
+updateModel (ShowProgress threadMVar imageMVar resultMVar) (Left _)
+  = batchEff (Right (Model Loading Loading Loading))
+    [ SetThread <$> readMVar threadMVar
+    , SetImage  <$> readMVar imageMVar
+    , SetResult <$> readMVar resultMVar
+    ]
+updateModel (ShowProgress threadMVar imageMVar resultMVar) (Right m)
+  = batchEff (Right m { image = Loading, result = Loading })
+    [ SetThread <$> readMVar threadMVar
+    , SetImage  <$> readMVar imageMVar
+    , SetResult <$> readMVar resultMVar
+    ]
+updateModel (SetThread threadId) (Right m)
+  = noEff (Right m { threadId = Loaded threadId })
+updateModel (SetImage  img) (Right m) = noEff (Right m { image  = Loaded img })
+updateModel (SetResult r  ) (Right m) = noEff (Right m { result = Loaded r   })
+updateModel NoOp m          = noEff m
+updateModel _    (Left err) = noEff (Left err)
+
+viewModel :: Either MisoString Model -> View Action
 viewModel m
   = div_ [] $ [
     "Barcode recognition"
@@ -146,18 +167,18 @@ viewModel m
     , br_ []
     ] ++ imgView m
   where
-    imgView Nothing =
-      [ text "No barcode image choosen" ]
-    imgView (Just (Model _ Loading      Loading)) =
+    imgView (Left err) =
+      [ text err ]
+    imgView (Right (Model _ Loading      Loading)) =
       [ text "Loading image ..." ]
-    imgView (Just (Model _ (Loaded img) Loading)) =
+    imgView (Right (Model _ (Loaded img) Loading)) =
       [ text "Recognizing EAN13 barcode ...", br_ []
       , img_ [src_ . imageStr $ img]
       ]
-    imgView (Just (Model _ Loading      (Loaded result))) =
+    imgView (Right (Model _ Loading      (Loaded result))) =
       eanView result ++
       [ text "Image is still loading (weird) ..." ]
-    imgView (Just (Model _ (Loaded img) (Loaded result))) =
+    imgView (Right (Model _ (Loaded img) (Loaded result))) =
       eanView result ++
       [ img_ [src_ . imageStr $ img] ]
     eanView (Error err) =
@@ -186,3 +207,11 @@ foreign import javascript unsafe "$r = $1.result;"
 
 foreign import javascript unsafe "$1.readAsDataURL($2);"
   readDataURL :: JSVal -> JSVal -> IO ()
+
+getSize :: JSVal -> IO (Maybe Int)
+getSize v
+  | isUndefined v = return Nothing
+  | otherwise     = Just <$> getSize0 v
+
+foreign import javascript unsafe "$r = $1.size;"
+  getSize0 :: JSVal -> IO Int
