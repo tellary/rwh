@@ -9,7 +9,7 @@ import Control.Exception       (SomeException, catch, displayException)
 import GHCJS.Foreign           (isUndefined)
 import GHCJS.Foreign.Callback  (Callback)
 import GHCJS.Types             (JSVal)
-import Helper                  (ean13, parseImage)
+import Helper                  (ean13, errorCutoff, parseImage)
 import Miso                    (App (..), Effect, View, accept_, asyncCallback,
                                 batchEff, br_, consoleLog, defaultEvents, div_,
                                 getElementById, id_, img_, input_, noEff,
@@ -99,8 +99,7 @@ readBarcode m file = do
                 Right (err :: Double, ean13 :: [Int]) -> do
                   consoleLog . ms @String
                     $ printf "Found EAN13: %s\nError: %f" (show ean13) err
-                  -- 14.25 extra lines in a barcode of 95 lines
-                  if err < 0.15
+                  if err < errorCutoff
                     then putMVar resultMVar . Good $ EAN13 ean13 err
                     else putMVar resultMVar . Bad  $ EAN13 ean13 err
                 Left err ->
@@ -128,7 +127,7 @@ updateModel ReadFile m = m <# do
   case s of
     Nothing   -> return . SetError $ noBarcodeChosen
     Just size -> do
-      consoleLog . ms $ "File size: " ++ show s
+      consoleLog . ms $ "File size: " ++ show size
       if size > sizeLimit
         then return . SetError . ms
              $ "Image file is too big, 512k max. It's "

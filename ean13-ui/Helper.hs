@@ -1,12 +1,12 @@
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts  #-}
 
-module Helper (ean13, parseImage) where
+module Helper (ean13, errorCutoff, parseImage) where
 
 import           Codec.Base64               (decode)
-import           Codec.Picture              (imageData, imageHeight, imageWidth)
 import           Codec.Picture              (Image, PixelRGB8, convertRGB8,
-                                             decodeImage)
+                                             decodeImage, imageData,
+                                             imageHeight, imageWidth)
 import           Data.Attoparsec.ByteString as P (IResult (Done, Fail, Partial),
                                                   Parser, parse, string,
                                                   takeByteString, takeWhile)
@@ -45,3 +45,6 @@ ean13 img = do
     -- a 55% black threshold. These parameters are manually tuned
     -- on files located in the `samples` folder.
     . findEAN13_0 3 3 0.55 $ ppm
+
+-- 14.25 extra lines in a barcode of 95 lines
+errorCutoff = 0.15
