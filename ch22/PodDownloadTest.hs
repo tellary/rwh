@@ -1,7 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module PodDownloadTest where
-
 import Control.Exception (catch, throw)
 import Data.Pool         (withResource)
 import PodDB             (initDB, listPodcastEpisodesByDone, mkPool)
@@ -23,3 +21,4 @@ d = do
   es <- withResource pool $ \conn -> listPodcastEpisodesByDone conn False p
   downloadEpisodes pool es
   
+main = d
