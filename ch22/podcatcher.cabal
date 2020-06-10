@@ -4,77 +4,58 @@ version:             0.1.0.0
 build-type:          Simple
 
 executable podcatcher
-  main-is:             podcatcher.hs
-  other-extensions:    OverloadedStrings, TemplateHaskell, DeriveLift,
-                       FlexibleInstances, MultiParamTypeClasses,
-                       TypeSynonymInstances, ScopedTypeVariables
-  default-language:    Haskell2010
-  if !impl(ghcjs)
-    other-modules:     PodTypes, PodDB, PodParser, PodDownload, OptParseREPL
-    other-extensions:  OverloadedStrings, TemplateHaskell, DeriveLift,
-                       FlexibleInstances, MultiParamTypeClasses,
-                       TypeSynonymInstances, ScopedTypeVariables
-    build-depends:     base >= 4.11.1 && < 4.12,
-                       bytestring >= 0.10.8 && < 0.11,
-                       directory >= 1.3.1 && < 1.4,
-                       network-uri >= 2.6.1 && < 2.7,
-                       text >= 1.2.3 && < 1.3,
-                       refined >= 0.4.4 && < 0.5,
-                       template-haskell >= 2.13.0 && < 2.14,
-                       sqlite-simple >= 0.4.18 && < 0.5,
-                       resource-pool >= 0.2.3 && < 0.3,
-                       data-default >= 0.7.1 && < 0.8,
-                       xml-conduit >= 1.8.0 && < 1.9,
-                       wreq >= 0.5.2 && < 0.6,
-                       unliftio >= 0.2.13 && < 0.3,
-                       lens >= 4.16.1 && < 4.17,
-                       split >= 0.2.3 && < 0.3,
-                       optparse-applicative >= 0.15.1 && < 0.16
-  else
-    buildable:         False
-
--- For GHCJS
-library podtypes
-  other-modules:       PodTypes
-  build-depends:       base, bytestring, text, directory,
-                       template-haskell, refined, network-uri
-  default-language:    Haskell2010
+  main-is:           podcatcher.hs
+  other-extensions:  OverloadedStrings, TemplateHaskell, DeriveLift,
+                     FlexibleInstances, MultiParamTypeClasses,
+                     TypeSynonymInstances, ScopedTypeVariables
+  default-language:  Haskell2010
+  other-modules:     PodTypes, PodDB, PodParser, PodDownload, OptParseREPL
+  other-extensions:  OverloadedStrings, TemplateHaskell, DeriveLift,
+                     FlexibleInstances, MultiParamTypeClasses,
+                     TypeSynonymInstances, ScopedTypeVariables
+  build-depends:     base >= 4.11.1 && < 4.13,
+                     bytestring >= 0.10.8 && < 0.11,
+                     directory >= 1.3.1 && < 1.4,
+                     network-uri >= 2.6.1 && < 2.7,
+                     text >= 1.2.3 && < 1.3,
+                     refined >= 0.4.4 && < 0.5,
+                     template-haskell >= 2.13.0 && < 2.15,
+                     sqlite-simple >= 0.4.18 && < 0.5,
+                     resource-pool >= 0.2.3 && < 0.3,
+                     data-default >= 0.7.1 && < 0.8,
+                     xml-conduit >= 1.8.0 && < 1.9,
+                     wreq >= 0.5.2 && < 0.6,
+                     unliftio >= 0.2.13 && < 0.3,
+                     lens >= 4.16.1 && < 4.19,
+                     split >= 0.2.3 && < 0.3,
+                     optparse-applicative >= 0.15.1 && < 0.16
 
 test-suite test-db
   type:             exitcode-stdio-1.0
   default-language: Haskell2010
   main-is:          PodDBTest.hs  
-  if !impl(ghcjs)
-    other-modules:    PodTypes, PodDB
-    build-depends:    base, template-haskell, refined, network-uri,
-                      resource-pool, sqlite-simple, tasty >= 1.3.1 && < 1.4,
-                      directory >= 1.3.1.5 && < 1.4,
-                      HUnit-Plus >= 2.0 && < 2.1,
-                      tasty-hunit >= 0.10.0.2 && < 0.11
-  else
-    buildable:        False
+  other-modules:    PodTypes, PodDB
+  build-depends:    base, template-haskell, refined, network-uri,
+                    resource-pool, sqlite-simple, tasty >= 1.3.1 && < 1.4,
+                    directory >= 1.3.1.5 && < 1.4,
+                    HUnit-Plus >= 2.0 && < 2.1,
+                    tasty-hunit >= 0.10.0.2 && < 0.11
 
 test-suite test-parser
   type:             exitcode-stdio-1.0
   default-language: Haskell2010
   main-is:          PodParserTest.hs
-  if !impl(ghcjs)
-    other-modules:    PodTypes, PodDB, PodParser
-    build-depends:    base, template-haskell, refined, network-uri,
-                      resource-pool, sqlite-simple, xml-conduit,
-                      data-default, text, hspec,
-                      directory >= 1.3.1.5 && < 1.4
-  else
-    buildable:        False
+  other-modules:    PodTypes, PodDB, PodParser
+  build-depends:    base, template-haskell, refined, network-uri,
+                    resource-pool, sqlite-simple, xml-conduit,
+                    data-default, text, hspec,
+                    directory >= 1.3.1.5 && < 1.4
 
 -- Only compile `PodDownloadTest`, but never run as a test nor install
-library test-download
+library blah
   default-language: Haskell2010
-  if !impl(ghcjs)
-    other-modules:    PodTypes, PodDB, PodParser, PodDownload, PodDownloadTest
-    build-depends:    base, template-haskell, refined, network-uri,
-                      resource-pool, sqlite-simple, text, data-default,
-                      xml-conduit, lens, bytestring, wreq, unliftio,
-                      directory >= 1.3.1.5 && < 1.4
-  else
-    buildable:        False
+  other-modules:    PodTypes, PodDB, PodParser, PodDownload, PodDownloadTest
+  build-depends:    base, template-haskell, refined, network-uri,
+                    resource-pool, sqlite-simple, text, data-default,
+                    xml-conduit, lens, bytestring, wreq, unliftio,
+                    directory >= 1.3.1.5 && < 1.4

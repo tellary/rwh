@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+module PodDownloadTest where
 
 import Control.Exception (catch, throw)
 import Data.Pool         (withResource)
