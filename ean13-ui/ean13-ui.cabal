@@ -7,10 +7,10 @@ build-type:          Simple
 
 executable findean13-ui
   main-is:             Main.hs
-  other-modules:       Helper
+  other-modules:       Helper, Model
   build-depends:       base, ghcjs-base, miso, mynetpbm, ean13,
                        split, array, transformers, bytestring,
                        containers, optparse-generic,
                        JuicyPixels, base-encoding, attoparsec,
-                       vector
+                       vector, lens
   default-language:    Haskell2010
