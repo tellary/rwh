@@ -1,35 +1,52 @@
+{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications    #-}
+
 module Main where
 
-import Control.Concurrent      (ThreadId, killThread, myThreadId)
-import Control.Concurrent.MVar (MVar, newEmptyMVar, putMVar, readMVar)
-import Control.Exception       (SomeException, catch, displayException)
-import Control.Lens            ((&), (.~), (^.), (^?), _Right)
-import GHCJS.Foreign           (isUndefined)
-import GHCJS.Foreign.Callback  (Callback)
-import GHCJS.Types             (JSVal)
-import Helper                  (ean13, errorCutoff, parseImage)
-import Miso                    (App (..), Effect, View, accept_, asyncCallback,
-                                batchEff, br_, button_, consoleLog,
-                                defaultEvents, div_, getElementById, id_, img_,
-                                input_, noEff, onChange, onClick, placeholder_,
-                                src_, startApp, text, type_, (<#))
-import Miso.String             (MisoString, append, fromMisoString, ms)
-import Text.Printf             (printf)
---import           JavaScript.Web.XMLHttpRequest (Request(..), xhrByteString)
-import Model                   (Barcode (..), EAN13 (..),
-                                ImageString (ImageString, imageStr),
-                                Loading (Loaded, Loading),
-                                Model (Model, imageUrl),
-                                Result (Bad, Error, Good), barcode, image,
-                                result, threadId)
+import           Control.Concurrent            (ThreadId, killThread,
+                                                myThreadId)
+import           Control.Concurrent.Async      (async, wait)
+import           Control.Concurrent.MVar       (MVar, newEmptyMVar, putMVar,
+                                                readMVar)
+import           Control.Exception             (SomeException, catch,
+                                                displayException)
+import           Control.Lens                  ((&), (.~), (^.), (^?), _Right)
+import qualified Data.ByteString               as B
+import           GHCJS.Foreign                 (isUndefined)
+import           GHCJS.Foreign.Callback        (Callback)
+import           GHCJS.Types                   (JSVal)
+import           Helper                        (ean13, errorCutoff, parseImage)
+import           JavaScript.Web.XMLHttpRequest (Method (GET), Request (..),
+                                                RequestData (NoData),
+                                                Response (contents),
+                                                xhrByteString)
+import           Miso                          (App (..), Effect, View, accept_,
+                                                asyncCallback, batchEff, br_,
+                                                button_, consoleLog,
+                                                defaultEvents, div_,
+                                                getElementById, id_, img_,
+                                                input_, noEff, onChange,
+                                                onClick, placeholder_, src_,
+                                                startApp, text, type_, (<#))
+import           Miso.String                   (MisoString, append,
+                                                fromMisoString, ms)
+import           Model                         (Barcode (..), EAN13 (..),
+                                                ImageString (
+                                                   ImageString, imageStr),
+                                                Loading (Loaded, Loading),
+                                                Model (Model, imageUrl),
+                                                Result (Bad, Error, Good),
+                                                barcode, image, result,
+                                                threadId)
+import           Text.Printf                   (printf)
 
 data Action
   = ReadFile
   | UpdateImageURL MisoString
   | FetchImage
+  | ImageFetched B.ByteString
   | NoOp
   -- `ShowProgress` has several `MVar`s to carry them out of the `ReadFile`
   -- handler and "batch" them into separate events in the
@@ -52,12 +69,7 @@ app = App { model         = Model "" (Left noBarcodeChosen)
 
 main = startApp app
 
-readBarcode :: Model -> JSVal -> IO Action
-readBarcode m file = do
-  reader          <- newReader
-  imageMVar       <- newEmptyMVar
-  resultMVar      <- newEmptyMVar
-  threadMVar      <- newEmptyMVar
+maybeKillJob m =
   case m ^? barcode . _Right . threadId of
     -- We keep track of a thread that does heavy lifting and
     -- try to kill it before starting next barcode recognition job.
@@ -69,6 +81,14 @@ readBarcode m file = do
       consoleLog . ms $ "Killing existing job " ++ show tid
       killThread tid
     _ -> return ()
+
+readBarcode :: Model -> JSVal -> IO Action
+readBarcode m file = do
+  reader          <- newReader
+  imageMVar       <- newEmptyMVar
+  resultMVar      <- newEmptyMVar
+  threadMVar      <- newEmptyMVar
+  maybeKillJob m
   setOnLoad reader =<< do
     asyncCallback $ do
       thId <- myThreadId
@@ -99,8 +119,35 @@ readBarcode m file = do
   readDataURL reader file
   return $ ShowProgress threadMVar imageMVar resultMVar
 
+fetchImage :: MisoString -> IO (Maybe B.ByteString)
+fetchImage url = contents <$> xhrByteString req
+  where
+    req = Request { reqMethod          = GET
+                  , reqURI             = fromMisoString $ url
+                  , reqLogin           = Nothing
+                  , reqHeaders         = []
+                  , reqWithCredentials = False
+                  , reqData            = NoData
+                  }
+
 sizeLimit :: Int
 sizeLimit = 1024*256
+
+checkSize size a = do
+  consoleLog . ms $ "File size: " ++ show size
+  if size > sizeLimit
+    then return . SetError . ms
+         $ "Image file is too big, 256k max. It's "
+         ++ show (size `div` 1024) ++ "k."
+    else a
+
+modelLoading m
+  = case m ^. barcode of
+      Left  _ -> m & barcode
+                   .~ Right (Barcode Loading Loading Loading)
+      Right _ -> m & c . image  .~ Loading
+                   & c . result .~ Loading
+  where c  = barcode . _Right
 
 updateModel :: Action
             -> Model
@@ -111,30 +158,28 @@ updateModel ReadFile m = m <# do
   s               <- getSize file
   case s of
     Nothing   -> return . SetError $ noBarcodeChosen
-    Just size -> do
-      consoleLog . ms $ "File size: " ++ show size
-      if size > sizeLimit
-        then return . SetError . ms
-             $ "Image file is too big, 512k max. It's "
-             ++ show (size `div` 1024) ++ "k."
-        else readBarcode m file
-updateModel FetchImage m = m <# do
-  consoleLog . ms $ "Fetching image " ++ show (imageUrl m)
-  return NoOp
+    Just size -> checkSize size $ readBarcode m file
+updateModel FetchImage m = (m & barcode .~ Left "Fetching image") <# do
+  consoleLog . ms $ "About to fetch image " ++ show (imageUrl m)
+  maybeKillJob m
+  a <- async (fetchImage (imageUrl m))
+  consoleLog "Started fetching image"
+  wait a >>= \case
+    Just bs -> do
+      consoleLog "Image fetched"
+      checkSize (B.length bs) . return . ImageFetched $ bs
+    Nothing -> return . SetError
+               . ms $ "Failed to fetch image: " ++ show (imageUrl m)
+updateModel (ImageFetched _) m
+  = (m & barcode .~ Left "Image fetched") <# return NoOp
 updateModel (UpdateImageURL url) m
   = m { imageUrl = url } <# do
       consoleLog ("url: " `append` url)
       return NoOp
 updateModel (SetError err) m = noEff $ m & barcode .~ Left err
 updateModel (ShowProgress threadMVar imageMVar resultMVar) m
-  = batchEff m1 as
-  where c  = barcode . _Right
-        m1 = case m ^. barcode of
-               Left  _ -> m & barcode
-                            .~ Right (Barcode Loading Loading Loading)
-               Right _ -> m & c . image  .~ Loading
-                            & c . result .~ Loading
-        as = [ SetThread <$> readMVar threadMVar
+  = batchEff (modelLoading m) as
+  where as = [ SetThread <$> readMVar threadMVar
              , SetImage  <$> readMVar imageMVar
              , SetResult <$> readMVar resultMVar
              ]

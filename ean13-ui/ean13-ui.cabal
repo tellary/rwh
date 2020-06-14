@@ -12,5 +12,5 @@ executable findean13-ui
                        split, array, transformers, bytestring,
                        containers, optparse-generic,
                        JuicyPixels, base-encoding, attoparsec,
-                       vector, lens
+                       vector, lens, async
   default-language:    Haskell2010
