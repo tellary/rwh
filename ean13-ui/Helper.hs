@@ -10,8 +10,10 @@ module Helper
 
 import           Codec.Base64               (decode, encode)
 import           Codec.Picture              (Image, PixelRGB8, convertRGB8,
-                                             decodeImage, decodeJpeg, imageData,
-                                             imageHeight, imageWidth)
+                                             decodeBitmap, decodeGif, decodeHDR,
+                                             decodeImage, decodeJpeg,
+                                             decodeTiff, imageData, imageHeight,
+                                             imageWidth)
 import           Data.Attoparsec.ByteString as P (IResult (Done, Fail, Partial),
                                                   Parser, parse, string,
                                                   takeByteString, takeWhile)
@@ -28,8 +30,19 @@ dataUrlP :: Parser (ByteString, ByteString)
 dataUrlP  = P.string "data:" *>
             ((,) <$> dataTypeP <* P.string ";base64," <*> P.takeByteString)
 
+-- All types from `Codec.Picture(decodeImageWithPaletteAndMetadata)`
+-- except `png`
+-- MIME image types are from here:
+-- https://www.digipres.org/formats/mime-types/
 decoders
-  = [("jpeg", decodeJpeg)]
+  = [ ( "jpeg"         , decodeJpeg   )
+    , ( "bmp"          , decodeBitmap )
+    , ( "gif"          , decodeGif    )
+    , ( "vnd.radiance" , decodeHDR    )
+    , ( "tiff"         , decodeTiff   )
+    -- `.tga` type is not registered with IANA,
+    -- according to https://en.wikipedia.org/wiki/Truevision_TGA
+    ]
 
 parseImageDataUrl :: HasCallStack
   => ByteString -> Either String (Image PixelRGB8)
