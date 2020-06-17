@@ -9,6 +9,7 @@ import           Control.Concurrent            (ThreadId, killThread)
 import           Control.Concurrent.Async      (async, asyncThreadId, wait)
 import           Control.Exception             (throw)
 import           Control.Monad                 (when)
+import           Data.List                     (intercalate)
 
 import           Codec.Picture                 (Image, PixelRGB8)
 import           Control.Concurrent.MVar       (newEmptyMVar, putMVar, readMVar)
@@ -146,7 +147,13 @@ parseFetchedImage
   -> IO (Image PixelRGB8, ImageDataUrl)
 parseFetchedImage bs =
   case parseImageByteString bs of
-    Left  errs -> throw . UIException . show $ errs
+    Left  errs
+      -> throw . UIException
+      $  "Image isn't of a supported type.\n"
+      ++ "Please not that .png isn't supported.\n"
+      ++ "The following types were tried:\n"
+      ++ intercalate ",\n" (map showErr errs)
+      where showErr (t, err) = t ++ ": " ++ err
     Right (imgType, img)
       -> return (img, ImageDataUrl . ms . createDataUrl (C.pack imgType) $ bs)
 
