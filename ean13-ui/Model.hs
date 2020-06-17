@@ -3,36 +3,35 @@
 
 module Model where
 
+import Control.Exception  (Exception)
 import Control.Concurrent (ThreadId)
-import Control.Lens       (makeLenses)
 #ifdef __GHCJS__
 import Miso.String        (MisoString)
 #else
 type MisoString = String
 #endif
 
-newtype ImageString
-  = ImageString { imageStr :: MisoString } deriving (Eq, Show)
+newtype ImageDataUrl
+  = ImageDataUrl { imageDataUrl :: MisoString } deriving (Eq, Show)
 
 data Model
   = Model
   { imageUrl :: MisoString
-  , _barcode  :: Either MisoString Barcode
+  , threadId :: Maybe ThreadId
+  , stage    :: BarcodeStage
   } deriving (Eq, Show)
 
-data Barcode
-  = Barcode
-  { _threadId :: Loading ThreadId
-  , _image    :: Loading ImageString
-  , _result   :: Loading Result
-  } deriving (Eq, Show)
-
-data Loading a
-  = Loading
-  | Loaded a
+data BarcodeStage
+  = ImageReadingStage
+  | ImageFetchingStage
+  | ImageDecodingStage (Maybe ImageDataUrl)
+  | BarcodeRecognitionStage ImageDataUrl
+  | ErrorStage MisoString
+  | ErrorImageStage MisoString ImageDataUrl
+  | ResultStage Result ImageDataUrl
   deriving (Eq, Show)
 
-data Result = Error MisoString | Bad EAN13 | Good EAN13 deriving (Eq, Show)
+data Result = Bad EAN13 | Good EAN13 deriving (Eq, Show)
 
 data EAN13
   = EAN13
@@ -40,5 +39,8 @@ data EAN13
   , eanError  :: Double
   } deriving (Eq, Show)
 
-$(makeLenses ''Model)
-$(makeLenses ''Barcode)
+data UIException = UIException String
+
+instance Show UIException where
+  show (UIException m) = m
+instance Exception UIException
