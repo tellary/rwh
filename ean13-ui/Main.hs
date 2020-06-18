@@ -7,7 +7,7 @@ module Main where
 
 import           Control.Concurrent            (ThreadId, killThread)
 import           Control.Concurrent.Async      (async, asyncThreadId, wait)
-import           Control.Exception             (throw)
+import           Control.Exception             (Handler(Handler), catches, throw)
 import           Control.Monad                 (when)
 import           Data.List                     (intercalate)
 
@@ -38,7 +38,7 @@ import           Miso                          (App (..), Effect (Effect), View,
                                                 onClick, placeholder_, src_,
                                                 startApp, text, type_, (<#))
 import           Miso.String                   (MisoString, append,
-                                                fromMisoString, ms)
+                                                fromMisoString, ms, null)
 import           Model                         (BarcodeStage (..), EAN13 (..),
                                                 ImageDataUrl (ImageDataUrl,
                                                               imageDataUrl),
@@ -46,6 +46,7 @@ import           Model                         (BarcodeStage (..), EAN13 (..),
                                                        stage, threadId),
                                                 Result (Bad, Good),
                                                 UIException (UIException))
+import           Prelude                       hiding (null)
 
 data Action
   = NoOp
@@ -86,8 +87,14 @@ maybeKillJob m =
 
 fetchImage :: MisoString -> IO ByteString
 fetchImage url =
-  exLog "fetch image" $ contents <$> xhrByteString req >>= \case
-      Nothing -> throw $ UIException "Failed to fetch image"
+  exLog ("fetch image at " ++ show url) $ do
+    when (null url) $ throw . UIException $ "Can't fetch an empty URL"
+    contents <$> xhrByteString req >>= \case
+      Nothing -> throw . UIException
+                 $  "Failed to fetch image at " ++ show url
+                 ++ " . This is caused by request being blocked by CORS policy"
+                 ++ " most likely. Try download this URL and read the file"
+                 ++ " by choosing it".
       Just bs -> return bs
   where
     req = Request { reqMethod          = GET
@@ -111,9 +118,13 @@ checkSize size = do
 
 exLog :: String -> IO a -> IO a
 exLog msg a
-  = catch a $ \(e :: SomeException) -> do
-      consoleLog .  ms $ "Failed to " ++ msg ++ ": " ++ displayException e
-      throw e
+  = a `catches`
+    [ Handler $ \(e :: UIException  ) -> do throw e
+    , Handler $ \(e :: SomeException) -> do
+        let msg1 = "Failed to " ++ msg ++ ": " ++ displayException e
+        consoleLog .  ms $ msg1
+        throw . UIException $ msg1
+    ]
 
 exAction :: IO Action -> IO Action
 exAction a
