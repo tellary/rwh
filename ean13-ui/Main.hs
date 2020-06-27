@@ -7,14 +7,15 @@ module Main where
 
 import           Control.Concurrent            (ThreadId, killThread)
 import           Control.Concurrent.Async      (async, asyncThreadId, wait)
-import           Control.Exception             (Handler(Handler), catches, throw)
+import           Control.Exception             (Handler (Handler), catches,
+                                                throw)
 import           Control.Monad                 (when)
 import           Data.List                     (intercalate)
 
 import           Codec.Picture                 (Image, PixelRGB8)
 import           Control.Concurrent.MVar       (newEmptyMVar, putMVar, readMVar)
 import           Control.Exception             (SomeException, catch,
-                                                displayException)
+                                                displayException, handle)
 import           Data.ByteString               (ByteString)
 import qualified Data.ByteString               as B (length)
 import qualified Data.ByteString.Char8         as C (pack)
@@ -27,7 +28,7 @@ import           Helper                        (createDataUrl, ean13,
                                                 parseImageDataUrl)
 import           JavaScript.Web.XMLHttpRequest (Method (GET), Request (..),
                                                 RequestData (NoData),
-                                                Response (contents),
+                                                Response (contents), XHRError,
                                                 xhrByteString)
 import           Miso                          (App (..), Effect (Effect), View,
                                                 accept_, asyncCallback, br_,
@@ -47,6 +48,7 @@ import           Model                         (BarcodeStage (..), EAN13 (..),
                                                 Result (Bad, Good),
                                                 UIException (UIException))
 import           Prelude                       hiding (null)
+import           Text.Printf                   (printf)
 
 data Action
   = NoOp
@@ -89,14 +91,20 @@ fetchImage :: MisoString -> IO ByteString
 fetchImage url =
   exLog ("fetch image at " ++ show url) $ do
     when (null url) $ throw . UIException $ "Can't fetch an empty URL"
-    contents <$> xhrByteString req >>= \case
+    handle xhrError (contents <$> xhrByteString req) >>= \case
       Nothing -> throw . UIException
-                 $  "Failed to fetch image at " ++ show url
-                 ++ " . This is caused by request being blocked by CORS policy"
-                 ++ " most likely. Try download this URL and read the file"
-                 ++ " by choosing it."
+                 $ printf "Failed to fetch image at %s. Nothing returned" url
       Just bs -> return bs
   where
+    xhrError (_ :: XHRError) =
+      throw . UIException
+      $ printf
+        "Failed to fetch image at %s. \
+        \This is most likely caused by the HTTP request being \
+        \blocked due to lack of CORS policy headers \
+        \in the response. Try to download this URL and read the file \
+        \from you computer by choosing it."
+        url
     req = Request { reqMethod          = GET
                   , reqURI             = fromMisoString $ url
                   , reqLogin           = Nothing
@@ -106,15 +114,17 @@ fetchImage url =
                   }
 
 sizeLimit :: Int
-sizeLimit = 1024*256
+sizeLimit  = 1024*sizeLimitK
+sizeLimitK = 256
 
 checkSize :: Int -> IO ()
 checkSize size = do
   consoleLog . ms $ "File size: " ++ show size
   when (size > sizeLimit)
-    $ throw . UIException
-    $ "Image file is too big, 256k max. It's "
-    ++ show (size `div` 1024) ++ "k."
+    . throw . UIException
+    $ printf "Image file is too big, %ik max. It's %ik"
+      sizeLimitK sizeK
+  where sizeK = size `div` 1024
 
 exLog :: String -> IO a -> IO a
 exLog msg a
@@ -160,10 +170,10 @@ parseFetchedImage bs =
   case parseImageByteString bs of
     Left  errs
       -> throw . UIException
-      $  "Image isn't of a supported type.\n"
-      ++ "Please not that .png isn't supported.\n"
-      ++ "The following types were tried:\n"
-      ++ intercalate ",\n" (map showErr errs)
+      $  printf "Image isn't of a supported type.\n\
+                \Please note that .png isn't supported.\n\
+                \The following types were tried:\n%s"
+                (intercalate ",\n" (map showErr errs))
       where showErr (t, err) = t ++ ": " ++ err
     Right (imgType, img)
       -> return (img, ImageDataUrl . ms . createDataUrl (C.pack imgType) $ bs)
