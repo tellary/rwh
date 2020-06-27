@@ -94,7 +94,7 @@ fetchImage url =
                  $  "Failed to fetch image at " ++ show url
                  ++ " . This is caused by request being blocked by CORS policy"
                  ++ " most likely. Try download this URL and read the file"
-                 ++ " by choosing it".
+                 ++ " by choosing it."
       Just bs -> return bs
   where
     req = Request { reqMethod          = GET
