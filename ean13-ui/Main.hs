@@ -10,6 +10,7 @@ import           Control.Concurrent.Async      (async, asyncThreadId, wait)
 import           Control.Exception             (Handler (Handler), catches,
                                                 throw)
 import           Control.Monad                 (when)
+import           Data.Bifunctor                (bimap)
 import           Data.List                     (intercalate)
 
 import           Codec.Picture                 (Image, PixelRGB8)
@@ -30,10 +31,9 @@ import           JavaScript.Web.XMLHttpRequest (Method (GET), Request (..),
                                                 RequestData (NoData),
                                                 Response (contents), XHRError,
                                                 xhrByteString)
-import           Miso                          (App (..), Effect (Effect), View,
-                                                accept_, asyncCallback, br_,
-                                                button_, consoleLog,
-                                                defaultEvents, div_,
+import           Miso                          (App (..), Effect, View, accept_,
+                                                asyncCallback, br_, button_,
+                                                consoleLog, defaultEvents, div_,
                                                 getElementById, id_, img_,
                                                 input_, noEff, onChange,
                                                 onClick, placeholder_, src_,
@@ -43,7 +43,8 @@ import           Miso.String                   (MisoString, append,
 import           Model                         (BarcodeStage (..), EAN13 (..),
                                                 ImageDataUrl (ImageDataUrl,
                                                               imageDataUrl),
-                                                Model (Model, imageUrl,
+                                                JobId,
+                                                Model (Model, imageUrl, jobId,
                                                        stage, threadId),
                                                 Result (Bad, Good),
                                                 UIException (UIException))
@@ -53,9 +54,14 @@ import           Text.Printf                   (printf)
 data Action
   = NoOp
   | UpdateImageUrl MisoString
-  | SetThread ThreadId (IO Action)
+  | FetchImageAction
+  | StartJob JobAction
+  | ContinueJob JobId JobAction
+
+data JobAction
+  = SetThread ThreadId (IO JobAction)
   | ReadImage
-  | FetchImage
+  | FetchImage MisoString
   | SetDataUrl ImageDataUrl
   | SetImageBytes ByteString
   | SetImage (Image PixelRGB8) ImageDataUrl
@@ -63,7 +69,7 @@ data Action
   | SetResult Result
 
 noBarcodeChosen = "No barcode image chosen"
-app = App { model         = Model "" Nothing (ErrorStage $ ms noBarcodeChosen)
+app = App { model         = Model 0 "" Nothing (ErrorStage $ ms noBarcodeChosen)
           , initialAction = NoOp
           , update        = updateModel
           , view          = viewModel
@@ -136,7 +142,7 @@ exLog msg a
         throw . UIException $ msg1
     ]
 
-exAction :: IO Action -> IO Action
+exAction :: IO JobAction -> IO JobAction
 exAction a
   = catch a $ \(e :: SomeException) -> do
       return . SetError . ms $ displayException e
@@ -187,7 +193,19 @@ recognizeBarcode img
       Left err -> throw . UIException $ err
 
 
-updateStage :: Action -> BarcodeStage -> Effect Action BarcodeStage
+updateStage :: JobAction -> BarcodeStage -> Effect JobAction BarcodeStage
+updateStage ReadImage _
+  = ImageReadingStage <# do
+      exAction $ do
+        dataUrl <- readImageFromFile
+        return . SetDataUrl $ dataUrl
+updateStage (FetchImage url) _
+  = ImageFetchingStage <# do
+      job <- async . fetchImage $ url
+      return . SetThread (asyncThreadId job) . exAction $ do
+        bs <- wait job
+        checkSize (B.length bs)
+        return . SetImageBytes $  bs
 updateStage (SetDataUrl dataUrl) _
   = ImageDecodingStage (Just dataUrl) <# do
       job <- async . parseFileImage $ dataUrl
@@ -220,29 +238,39 @@ updateStageInvocationError =
   throw . UIException $ "`updateStage` invoked for a wrong Action"
   
 updateModel :: Action -> Model -> Effect Action Model
-updateModel ReadImage m
-  = m { stage = ImageReadingStage } <# do
-      exAction $ do
-        maybeKillJob m
-        dataUrl <- readImageFromFile
-        return . SetDataUrl $ dataUrl
-updateModel FetchImage m
-  = m { stage = ImageFetchingStage } <# do
+updateModel (StartJob a) m
+  = m { jobId = newJobId } <# do
       maybeKillJob m
-      job <- async . fetchImage . imageUrl $ m
-      return . SetThread (asyncThreadId job) . exAction $ do
-        bs <- wait job
-        checkSize (B.length bs)
-        return . SetImageBytes $  bs
+      return $ ContinueJob newJobId a
+  where newJobId = jobId m + 1
+-- We check if `actionJobId` matches what's in the model,
+-- the action is ignored if not.
+--
+-- We try to kill an existing
+-- job's thread, but it's not always possible as
+-- `SetThread` for a next job's stage
+-- may be processed after we start a new job.
+-- We create a new `JobId` each time we start a new job to
+-- handle this case.
+-- If an existing job's thread isn't killed when starting a new
+-- job then the `actionJobId` is different from what's in the model and
+-- the event is ignored.
+updateModel (ContinueJob actionJobId a) m
+  | jobId m == actionJobId
+  = case a of
+      SetThread thId act -> m { threadId = Just thId } <# (toAct <$> act)
+      _                  -> bimap toAct toModel $ updateStage a (stage m)
+  | otherwise
+  = m <# return NoOp
+  where toModel s = m { stage = s }
+        toAct a = ContinueJob actionJobId a
 updateModel (UpdateImageUrl url) m
   = m { imageUrl = url } <# do
       consoleLog ("url: " `append` url)
       return NoOp
-updateModel (SetThread thId act) m = m { threadId = Just thId } <# act
+updateModel (FetchImageAction) m
+  = m <# (return . StartJob . FetchImage . imageUrl $ m)
 updateModel NoOp m = noEff m
-updateModel a m
-  = Effect m { stage = s } acts
-  where Effect s acts = updateStage a (stage m)
 
 viewModel :: Model -> View Action
 viewModel m
@@ -252,14 +280,14 @@ viewModel m
     , input_ [ id_ "fileReader"
              , type_ "file"
              , accept_ "image/*"
-             , onChange (const ReadImage)
+             , onChange (const (StartJob ReadImage))
              ]
     , br_ []
     , input_ [ placeholder_ "Barcode image URL"
              , type_ "url"
              , onChange UpdateImageUrl
              ]
-    , button_ [ onClick FetchImage ] [ text "Read barcode"]
+    , button_ [ onClick FetchImageAction ] [ text "Read barcode"]
     , br_ []
     ] ++ modelView m
   where

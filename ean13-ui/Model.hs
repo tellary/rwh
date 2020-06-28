@@ -14,9 +14,12 @@ type MisoString = String
 newtype ImageDataUrl
   = ImageDataUrl { imageDataUrl :: MisoString } deriving (Eq, Show)
 
+type JobId = Int
+
 data Model
   = Model
-  { imageUrl :: MisoString
+  { jobId    :: JobId
+  , imageUrl :: MisoString
   , threadId :: Maybe ThreadId
   , stage    :: BarcodeStage
   } deriving (Eq, Show)
