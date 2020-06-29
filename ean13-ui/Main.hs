@@ -47,8 +47,8 @@ import           Model                         (BarcodeStage (..), EAN13 (..),
                                                 ImageDataUrl (ImageDataUrl,
                                                               imageDataUrl),
                                                 JobId,
-                                                Model (Model, gallery, imageUrl,
-                                                       jobId, stage, threadId),
+                                                Model (Model, imageUrl, jobId,
+                                                       stage, threadId),
                                                 Result (Bad, Good),
                                                 UIException (UIException))
 import           Prelude                       hiding (null)
@@ -74,13 +74,32 @@ data JobAction
 noBarcodeChosen = "No barcode image chosen"
 initModel
   = Model 0 "" Nothing (ErrorStage $ ms noBarcodeChosen)
-    [ GalleryItem
-      "https://internationalbarcodes.net/internationalbarcodescom\
-      \/wp-content/uploads/sites/5/2013/09/EAN-13-Bitmap.bmp"
+
+goodGallery
+  = [ GalleryItem
+      "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_1.jpg"
+      "[1,2,3,4,5,6,7,8,9,0,1,2,8].jpg"
+    , GalleryItem
+      "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_3.jpg"
+      "[0,7,0,5,6,3,2,0,8,5,9,4,3].jpg"
+    , GalleryItem
+      "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_8.bmp"
       "[0,1,2,3,4,5,6,7,8,9,1,0,4].bmp"
     , GalleryItem
-      "https://worldbarcodes.com/wp-content/uploads/standard-ean-new.gif"
+      "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_9.gif"
       "[0,7,0,5,6,3,2,4,4,1,9,4,7].gif"
+    , GalleryItem
+      "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_4.jpg"
+      "[3,8,0,0,0,6,5,7,1,1,1,3,5].jpg"
+    , GalleryItem
+      "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_5.jpg"
+      "[4,9,0,2,5,0,6,3,0,4,9,1,9].jpg (Color photo)"
+    , GalleryItem
+      "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_6.jpeg"
+      "[0,0,7,2,5,1,2,0,4,4,9,0,2].jpg (Photo, Made in Japan)"
+    , GalleryItem
+      "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_7.jpeg"
+      "[8,7,1,8,8,6,8,6,6,9,0,7,0].jpg (Photo taken from a side)"
     ]
 
 app = App { model         = initModel
@@ -312,7 +331,7 @@ viewModel m
     ] ++ modelView m
   where
     modelView m
-      =  (galleryView . gallery $ m)
+      =  galleryView
       ++ [br_ [], br_ []]
       ++ (resultView . stage $ m)
 
@@ -354,12 +373,12 @@ viewModel m
         , text . ms $ "Error: "   ++ show err, br_ []
         ]
 
-    galleryView is
+    galleryView
       =  [br_ [], br_ []
          , b_ [] [ text "Samples gallery" ]
          , br_ []
          ]
-      ++ concat (map itemView is)
+      ++ concat (map itemView goodGallery)
 
     itemView i
       = [ a_ [ href_ . ("#" `append`) . itemDesc $ i

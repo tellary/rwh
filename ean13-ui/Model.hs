@@ -22,7 +22,6 @@ data Model
   , imageUrl :: MisoString
   , threadId :: Maybe ThreadId
   , stage    :: BarcodeStage
-  , gallery  :: [GalleryItem]
   } deriving (Eq, Show)
 
 data BarcodeStage
