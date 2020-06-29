@@ -31,21 +31,24 @@ import           JavaScript.Web.XMLHttpRequest (Method (GET), Request (..),
                                                 RequestData (NoData),
                                                 Response (contents), XHRError,
                                                 xhrByteString)
-import           Miso                          (App (..), Effect, View, accept_,
-                                                asyncCallback, br_, button_,
-                                                consoleLog, defaultEvents, div_,
-                                                getElementById, id_, img_,
-                                                input_, noEff, onChange,
+import           Miso                          (App (..), Effect, View, a_,
+                                                accept_, asyncCallback, b_, br_,
+                                                button_, consoleLog,
+                                                defaultEvents, div_,
+                                                getElementById, href_, id_,
+                                                img_, input_, noEff, onChange,
                                                 onClick, placeholder_, src_,
                                                 startApp, text, type_, (<#))
 import           Miso.String                   (MisoString, append,
                                                 fromMisoString, ms, null)
 import           Model                         (BarcodeStage (..), EAN13 (..),
+                                                GalleryItem (GalleryItem,
+                                                             itemDesc, itemUrl),
                                                 ImageDataUrl (ImageDataUrl,
                                                               imageDataUrl),
                                                 JobId,
-                                                Model (Model, imageUrl, jobId,
-                                                       stage, threadId),
+                                                Model (Model, gallery, imageUrl,
+                                                       jobId, stage, threadId),
                                                 Result (Bad, Good),
                                                 UIException (UIException))
 import           Prelude                       hiding (null)
@@ -69,7 +72,18 @@ data JobAction
   | SetResult Result
 
 noBarcodeChosen = "No barcode image chosen"
-app = App { model         = Model 0 "" Nothing (ErrorStage $ ms noBarcodeChosen)
+initModel
+  = Model 0 "" Nothing (ErrorStage $ ms noBarcodeChosen)
+    [ GalleryItem
+      "https://internationalbarcodes.net/internationalbarcodescom\
+      \/wp-content/uploads/sites/5/2013/09/EAN-13-Bitmap.bmp"
+      "[0,1,2,3,4,5,6,7,8,9,1,0,4].bmp"
+    , GalleryItem
+      "https://worldbarcodes.com/wp-content/uploads/standard-ean-new.gif"
+      "[0,7,0,5,6,3,2,4,4,1,9,4,7].gif"
+    ]
+
+app = App { model         = initModel
           , initialAction = NoOp
           , update        = updateModel
           , view          = viewModel
@@ -275,23 +289,36 @@ updateModel NoOp m = noEff m
 viewModel :: Model -> View Action
 viewModel m
   = div_ [] $ [
-    "Barcode recognition"
-    , br_ []
+    b_ [] [ text "Barcode recognition written in Haskell and \
+                 \running in your browser" ]
+    , br_ [], br_ []
+    , text "Choose barcode image from your file system", br_ []
     , input_ [ id_ "fileReader"
              , type_ "file"
              , accept_ "image/*"
              , onChange (const (StartJob ReadImage))
              ]
-    , br_ []
+    , text ", or", br_ [], br_ []
+    , text "Fetch a barcode image by providing an URL below", br_ []
+    , text "(please note that .png images are not supported and an image \
+           \may be blocked by a CORS policy of the image's host)", br_ []
     , input_ [ placeholder_ "Barcode image URL"
              , type_ "url"
              , onChange UpdateImageUrl
              ]
-    , button_ [ onClick FetchImageAction ] [ text "Read barcode"]
-    , br_ []
+    , button_ [ onClick FetchImageAction ] [ text "Fetch barcode"]
+    , text ", or", br_ [], br_ []
+    , text "Pick a sample by clicking a link from the gallery below."
     ] ++ modelView m
   where
-    modelView m = stageView . stage $ m
+    modelView m
+      =  (galleryView . gallery $ m)
+      ++ [br_ [], br_ []]
+      ++ (resultView . stage $ m)
+
+    resultView s
+      =  [ b_ [] [ text "Barcode recognition result" ], br_ [] ]
+      ++ stageView s
 
     stageView ImageReadingStage
       = [ text "Loading image from file ..." ]
@@ -325,6 +352,21 @@ viewModel m
       = [ text        "ERROR TOO LARGE, barcode may be innacurate", br_ []
         , text . ms $ "Barcode: " ++ show ean13, br_ []
         , text . ms $ "Error: "   ++ show err, br_ []
+        ]
+
+    galleryView is
+      =  [br_ [], br_ []
+         , b_ [] [ text "Samples gallery" ]
+         , br_ []
+         ]
+      ++ concat (map itemView is)
+
+    itemView i
+      = [ a_ [ href_ . ("#" `append`) . itemDesc $ i
+             , onClick . StartJob . FetchImage . itemUrl $ i
+             ]
+             [ text . itemDesc $ i]
+        , br_ []
         ]
 
 foreign import javascript unsafe "$r = new FileReader();"

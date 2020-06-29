@@ -22,6 +22,7 @@ data Model
   , imageUrl :: MisoString
   , threadId :: Maybe ThreadId
   , stage    :: BarcodeStage
+  , gallery  :: [GalleryItem]
   } deriving (Eq, Show)
 
 data BarcodeStage
@@ -40,6 +41,12 @@ data EAN13
   = EAN13
   { eanDigits :: [Int]
   , eanError  :: Double
+  } deriving (Eq, Show)
+
+data GalleryItem
+  = GalleryItem
+  { itemUrl   :: MisoString
+  , itemDesc  :: MisoString
   } deriving (Eq, Show)
 
 data UIException = UIException String
