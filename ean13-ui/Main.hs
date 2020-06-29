@@ -102,6 +102,30 @@ goodGallery
       "[8,7,1,8,8,6,8,6,6,9,0,7,0].jpg (Photo taken from a side)"
     ]
 
+badGallery
+  = [ GalleryItem
+      "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_2_bad.jpeg"
+      "Barcode that's not recognized by any tool online"
+    , GalleryItem
+      "https://ean13-samples.s3-us-west-2.amazonaws.com/zebra.jpeg"
+      "Zebra picture"
+    , GalleryItem
+      "https://ean13-samples.s3-us-west-2.amazonaws.com/zebras_bad.jpeg"
+      "Many zebras"
+    , GalleryItem
+      "https://ean13-samples.s3-us-west-2.amazonaws.com/book.jpeg"
+      "Book"
+    , GalleryItem
+      "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13.png"
+      "PNG barcode (PNG not supported)"
+    , GalleryItem
+      "https://ean13-samples.s3-us-west-2.amazonaws.com/lion.jpeg"
+      "Lion"
+    , GalleryItem
+      "https://ean13-samples.s3-us-west-2.amazonaws.com/racoon.jpeg"
+      "Racoon"
+    ]
+
 app = App { model         = initModel
           , initialAction = NoOp
           , update        = updateModel
@@ -379,6 +403,9 @@ viewModel m
          , br_ []
          ]
       ++ concat (map itemView goodGallery)
+      ++ [ br_ [],
+           text "Negative samples", br_ [] ]
+      ++ concat (map itemView badGallery)
 
     itemView i
       = [ a_ [ href_ . ("#" `append`) . itemDesc $ i
