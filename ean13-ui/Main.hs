@@ -335,7 +335,7 @@ viewModel m
     b_ [] [ text "Barcode recognition written in Haskell and \
                  \running in your browser" ]
     , br_ [], br_ []
-    , text "Choose barcode image from your file system", br_ []
+    , text "Choose a barcode image from your file system", br_ []
     , input_ [ id_ "fileReader"
              , type_ "file"
              , accept_ "image/*"
@@ -389,13 +389,12 @@ viewModel m
 
     eanView (Good (EAN13 ean13 err))
       = [ text . ms $ "Barcode: " ++ show ean13, br_ []
-        , text . ms $ "Error: "   ++ show err, br_ []
+        , text . ms $ "Recognition error: "   ++ show err, br_ []
+        , text        "(The lower error is the better. 0 is the ideal)", br_ []
         ]
     eanView (Bad  (EAN13 ean13 err))
-      = [ text        "ERROR TOO LARGE, barcode may be innacurate", br_ []
-        , text . ms $ "Barcode: " ++ show ean13, br_ []
-        , text . ms $ "Error: "   ++ show err, br_ []
-        ]
+      =  [ text        "ERROR TOO LARGE, barcode may be innacurate", br_ [] ]
+      ++ eanView (Good (EAN13 ean13 err))
 
     galleryView
       =  [br_ [], br_ []
@@ -404,7 +403,7 @@ viewModel m
          ]
       ++ concat (map itemView goodGallery)
       ++ [ br_ [],
-           text "Negative samples", br_ [] ]
+           text "Negative samples:", br_ [] ]
       ++ concat (map itemView badGallery)
 
     itemView i
