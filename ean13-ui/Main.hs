@@ -22,7 +22,8 @@ import qualified Data.ByteString               as B (length)
 import qualified Data.ByteString.Char8         as C (pack)
 import           GHCJS.Foreign                 (isUndefined)
 import           GHCJS.Foreign.Callback        (Callback)
-import           GHCJS.Types                   (JSVal)
+import           GHCJS.Marshal                 (fromJSValUnchecked)
+import           GHCJS.Types                   (JSString, JSVal)
 import           Helper                        (createDataUrl, ean13,
                                                 errorCutoff,
                                                 parseImageByteString,
@@ -32,7 +33,8 @@ import           JavaScript.Web.XMLHttpRequest (Method (GET), Request (..),
                                                 Response (contents), XHRError,
                                                 xhrByteString)
 import           Miso                          (App (..), Effect, View, a_,
-                                                accept_, asyncCallback, b_, br_,
+                                                accept_, asyncCallback,
+                                                asyncCallback1, b_, br_,
                                                 button_, consoleLog,
                                                 defaultEvents, div_,
                                                 getElementById, href_, id_,
@@ -40,7 +42,8 @@ import           Miso                          (App (..), Effect, View, a_,
                                                 onClick, placeholder_, src_,
                                                 startApp, text, type_, (<#))
 import           Miso.String                   (MisoString, append,
-                                                fromMisoString, ms, null)
+                                                fromMisoString, ms, null,
+                                                toMisoString)
 import           Model                         (BarcodeStage (..), EAN13 (..),
                                                 GalleryItem (GalleryItem,
                                                              itemDesc, itemUrl),
@@ -210,8 +213,7 @@ readImageFromFile = do
   file            <- getFile fileReaderInput
   getSize file >>= \case
     Nothing   -> throw . UIException $ noBarcodeChosen
-    Just size -> do
-      checkSize size
+    Just _ -> do
       reader    <- newReader
       imageMVar <- newEmptyMVar
       setOnLoad reader =<< asyncCallback (do
@@ -265,10 +267,19 @@ updateStage (FetchImage url) _
         return . SetImageBytes $  bs
 updateStage (SetDataUrl dataUrl) _
   = ImageDecodingStage (Just dataUrl) <# do
-      job <- async . parseFileImage $ dataUrl
+      job <- async $ do
+        mvar <- newEmptyMVar
+        resize (imageDataUrl dataUrl) =<< do
+          asyncCallback1 $ \dataUrlJS -> do
+            dataUrl1 <- ImageDataUrl . toMisoString
+                        <$> (fromJSValUnchecked dataUrlJS :: IO JSString)
+            consoleLog ("dataUrl1: " `append` imageDataUrl dataUrl1)
+            img <- parseFileImage dataUrl1
+            putMVar mvar (dataUrl1, img)
+        readMVar mvar
       return . SetThread (asyncThreadId job) . exAction $ do
-        img <- wait job
-        return $ SetImage img dataUrl
+        (dataUrl1, img) <- wait job
+        return $ SetImage img dataUrl1
 updateStage (SetImageBytes bs) _
   = ImageDecodingStage Nothing <# do
       job <- async . parseFetchedImage $ bs
@@ -436,3 +447,7 @@ getSize v
 
 foreign import javascript unsafe "$r = $1.size;"
   getSize0 :: JSVal -> IO Int
+
+-- See resize.js
+foreign import javascript unsafe "ean13_resize($1, $2)"
+  resize :: MisoString -> Callback (JSVal -> IO ()) -> IO ()
