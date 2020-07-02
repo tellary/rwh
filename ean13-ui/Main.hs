@@ -12,13 +12,13 @@ import           Control.Exception             (Handler (Handler), catches,
 import           Control.Monad                 (when)
 import           Data.Bifunctor                (bimap)
 import           Data.List                     (intercalate)
+import           Resize                        (byteStringJSDataUrl)
 
 import           Codec.Picture                 (Image, PixelRGB8)
 import           Control.Concurrent.MVar       (newEmptyMVar, putMVar, readMVar)
 import           Control.Exception             (SomeException, catch,
                                                 displayException, handle)
 import           Data.ByteString               (ByteString)
-import qualified Data.ByteString               as B (length)
 import qualified Data.ByteString.Char8         as C (pack)
 import           GHCJS.Foreign                 (isUndefined)
 import           GHCJS.Foreign.Callback        (Callback)
@@ -183,15 +183,6 @@ sizeLimit :: Int
 sizeLimit  = 1024*sizeLimitK
 sizeLimitK = 256
 
-checkSize :: Int -> IO ()
-checkSize size = do
-  consoleLog . ms $ "File size: " ++ show size
-  when (size > sizeLimit)
-    . throw . UIException
-    $ printf "Image file is too big, %ik max. It's %ik"
-      sizeLimitK sizeK
-  where sizeK = size `div` 1024
-
 exLog :: String -> IO a -> IO a
 exLog msg a
   = a `catches`
@@ -263,7 +254,6 @@ updateStage (FetchImage url) _
       job <- async . fetchImage $ url
       return . SetThread (asyncThreadId job) . exAction $ do
         bs <- wait job
-        checkSize (B.length bs)
         return . SetImageBytes $  bs
 updateStage (SetDataUrl dataUrl) _
   = ImageDecodingStage (Just dataUrl) <# do
@@ -282,10 +272,12 @@ updateStage (SetDataUrl dataUrl) _
         return $ SetImage img dataUrl1
 updateStage (SetImageBytes bs) _
   = ImageDecodingStage Nothing <# do
-      job <- async . parseFetchedImage $ bs
+      job <- async $ do
+        jsStr <- byteStringJSDataUrl $ bs
+        return . ImageDataUrl . toMisoString $ jsStr
       return . SetThread (asyncThreadId job) . exAction $ do
-        (img, dataUrl) <- wait job
-        return $ SetImage img dataUrl
+        dataUrl <- wait job
+        return $ SetDataUrl dataUrl
 updateStage (SetImage img dataUrl) _
   = BarcodeRecognitionStage dataUrl <# do      
       job <- async . recognizeBarcode $ img
