@@ -13,7 +13,9 @@ executable findean13-ui
                        containers, optparse-generic,
                        JuicyPixels, base-encoding, attoparsec,
                        vector, async
-  if !impl(ghcjs)
+  if impl(ghcjs)
+    build-depends: ghcjs-base
+  else
     build-depends:
        jsaddle, jsaddle-warp, transformers, warp, websockets
   js-sources:          resize.js
