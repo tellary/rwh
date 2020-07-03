@@ -1,6 +1,6 @@
 set -x
 
-nix-build
+nix-build -A release
 BUCKET=ean13
 aws s3 mb s3://$BUCKET
 pushd result/bin/findean13-ui.jsexe/

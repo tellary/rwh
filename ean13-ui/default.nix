@@ -10,4 +10,14 @@ let
       # Disabling tests for build speed
       # QuickCheck = dontCheck super.QuickCheck;
     });
-in ghcjs.callCabal2nix "ean13-ui" ./. {}
+  ghc   = pkgs.haskell.packages.ghc865.extend (
+    self: super: with pkgs.haskell.lib; {
+      mynetpbm = self.callCabal2nix "mynetpbm" ../ch10 {};
+      ean13    = self.callCabal2nix "ean13"    ../ch12 {};
+      # Disabling tests for build speed
+      # QuickCheck = dontCheck super.QuickCheck;
+    });
+in {
+  dev = ghc.callCabal2nix   "ean13-ui" ./. { miso = miso-jsaddle; };
+  release = ghcjs.callCabal2nix "ean13-ui" ./. {};
+}

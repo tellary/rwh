@@ -7,11 +7,14 @@ build-type:          Simple
 
 executable findean13-ui
   main-is:             Main.hs
-  other-modules:       Helper, Model
-  build-depends:       base, ghcjs-base, ghcjs-dom, miso, mynetpbm, ean13,
+  other-modules:       Helper, Model, Resize
+  build-depends:       base, miso, ghcjs-dom, mynetpbm, ean13,
                        split, array, transformers, bytestring,
                        containers, optparse-generic,
                        JuicyPixels, base-encoding, attoparsec,
                        vector, async
+  if !impl(ghcjs)
+    build-depends:
+       jsaddle, jsaddle-warp, transformers, warp, websockets
   js-sources:          resize.js
   default-language:    Haskell2010
