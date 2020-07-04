@@ -5,57 +5,45 @@
 
 module Main where
 
-import           Control.Concurrent            (ThreadId, killThread)
-import           Control.Concurrent.Async      (async, asyncThreadId, wait)
-import           Control.Exception             (Handler (Handler), catches,
-                                                throw)
-import           Control.Monad                 (when)
-import           Data.Bifunctor                (bimap)
-import           Data.List                     (intercalate)
-import           Resize                        (byteStringJSDataUrl)
+import Control.Concurrent            (ThreadId, killThread)
+import Control.Concurrent.Async      (async, asyncThreadId, wait)
+import Control.Exception             (Handler (Handler), catches, throw)
+import Control.Monad                 (when)
+import Data.Bifunctor                (bimap)
+import Resize                        (byteStringJSDataUrl)
 
-import           Codec.Picture                 (Image, PixelRGB8)
-import           Control.Concurrent.MVar       (newEmptyMVar, putMVar, readMVar)
-import           Control.Exception             (SomeException, catch,
-                                                displayException, handle)
-import           Data.ByteString               (ByteString)
-import qualified Data.ByteString.Char8         as C (pack)
-import           GHCJS.Foreign                 (isUndefined)
-import           GHCJS.Foreign.Callback        (Callback)
-import           GHCJS.Marshal                 (fromJSValUnchecked)
-import           GHCJS.Types                   (JSString, JSVal)
-import           Helper                        (createDataUrl, ean13,
-                                                errorCutoff,
-                                                parseImageByteString,
-                                                parseImageDataUrl)
-import           JavaScript.Web.XMLHttpRequest (Method (GET), Request (..),
-                                                RequestData (NoData),
-                                                Response (contents), XHRError,
-                                                xhrByteString)
-import           Miso                          (App (..), Effect, View, a_,
-                                                accept_, asyncCallback,
-                                                asyncCallback1, b_, br_,
-                                                button_, consoleLog,
-                                                defaultEvents, div_,
-                                                getElementById, href_, id_,
-                                                img_, input_, noEff, onChange,
-                                                onClick, placeholder_, src_,
-                                                startApp, text, type_, (<#))
-import           Miso.String                   (MisoString, append,
-                                                fromMisoString, ms, null,
-                                                toMisoString)
-import           Model                         (BarcodeStage (..), EAN13 (..),
-                                                GalleryItem (GalleryItem,
-                                                             itemDesc, itemUrl),
-                                                ImageDataUrl (ImageDataUrl,
-                                                              imageDataUrl),
-                                                JobId,
-                                                Model (Model, imageUrl, jobId,
-                                                       stage, threadId),
-                                                Result (Bad, Good),
-                                                UIException (UIException))
-import           Prelude                       hiding (null)
-import           Text.Printf                   (printf)
+import Codec.Picture                 (Image, PixelRGB8)
+import Control.Concurrent.MVar       (newEmptyMVar, putMVar, readMVar)
+import Control.Exception             (SomeException, catch, displayException,
+                                      handle)
+import Data.ByteString               (ByteString)
+import GHCJS.Foreign                 (isUndefined)
+import GHCJS.Foreign.Callback        (Callback)
+import GHCJS.Marshal                 (fromJSValUnchecked)
+import GHCJS.Types                   (JSString, JSVal)
+import Helper                        (ean13, errorCutoff, parseImageDataUrl)
+import JavaScript.Web.XMLHttpRequest (Method (GET), Request (..),
+                                      RequestData (NoData), Response (contents),
+                                      XHRError, xhrByteString)
+import Miso                          (App (..), Effect, View, a_, accept_,
+                                      asyncCallback, asyncCallback1, b_, br_,
+                                      button_, consoleLog, defaultEvents, div_,
+                                      getElementById, href_, id_, img_, input_,
+                                      noEff, onChange, onClick, placeholder_,
+                                      src_, startApp, text, type_, (<#))
+import Miso.String                   (MisoString, append, fromMisoString, ms,
+                                      null, toMisoString)
+import Model                         (BarcodeStage (..), EAN13 (..),
+                                      GalleryItem (GalleryItem, itemDesc,
+                                                   itemUrl),
+                                      ImageDataUrl (ImageDataUrl, imageDataUrl),
+                                      JobId,
+                                      Model (Model, imageUrl, jobId, stage,
+                                             threadId),
+                                      Result (Bad, Good),
+                                      UIException (UIException))
+import Prelude                       hiding (null)
+import Text.Printf                   (printf)
 
 data Action
   = NoOp
@@ -92,6 +80,9 @@ goodGallery
       "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_9.gif"
       "[0,7,0,5,6,3,2,4,4,1,9,4,7].gif"
     , GalleryItem
+      "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13.png"
+      "[1,2,3,4,5,6,7,8,9,0,1,2,8].png"
+    , GalleryItem
       "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_4.jpg"
       "[3,8,0,0,0,6,5,7,1,1,1,3,5].jpg"
     , GalleryItem
@@ -118,9 +109,6 @@ badGallery
     , GalleryItem
       "https://ean13-samples.s3-us-west-2.amazonaws.com/book.jpeg"
       "Book"
-    , GalleryItem
-      "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13.png"
-      "PNG barcode (PNG not supported)"
     , GalleryItem
       "https://ean13-samples.s3-us-west-2.amazonaws.com/lion.jpeg"
       "Lion"
@@ -219,21 +207,6 @@ parseFileImage dataUrl
       Right img -> return img
       Left err  -> throw . UIException $ err              
 
-parseFetchedImage
-  :: ByteString
-  -> IO (Image PixelRGB8, ImageDataUrl)
-parseFetchedImage bs =
-  case parseImageByteString bs of
-    Left  errs
-      -> throw . UIException
-      $  printf "Image isn't of a supported type.\n\
-                \Please note that .png isn't supported.\n\
-                \The following types were tried:\n%s"
-                (intercalate ",\n" (map showErr errs))
-      where showErr (t, err) = t ++ ": " ++ err
-    Right (imgType, img)
-      -> return (img, ImageDataUrl . ms . createDataUrl (C.pack imgType) $ bs)
-
 recognizeBarcode :: Image PixelRGB8 -> IO Result
 recognizeBarcode img
   = case ean13 img of
@@ -241,7 +214,6 @@ recognizeBarcode img
                           then Good r
                           else Bad  r
       Left err -> throw . UIException $ err
-
 
 updateStage :: JobAction -> BarcodeStage -> Effect JobAction BarcodeStage
 updateStage ReadImage _
@@ -346,7 +318,7 @@ viewModel m
              ]
     , text ", or", br_ [], br_ []
     , text "Fetch a barcode image by providing an URL below", br_ []
-    , text "(please note that .png images are not supported and an image \
+    , text "(please note that an image \
            \may be blocked by a CORS policy of the image's host)", br_ []
     , input_ [ placeholder_ "Barcode image URL"
              , type_ "url"

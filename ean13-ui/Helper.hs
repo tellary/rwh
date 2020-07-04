@@ -2,22 +2,18 @@
 {-# LANGUAGE FlexibleContexts  #-}
 
 module Helper
-  ( createDataUrl
-  , ean13
+  ( ean13
   , errorCutoff
-  , parseImageByteString
   , parseImageDataUrl) where
 
-import           Codec.Base64               (decode, encode)
+import           Codec.Base64               (decode)
 import           Codec.Picture              (Image, PixelRGB8, convertRGB8,
-                                             decodeBitmap, decodeGif, decodeHDR,
-                                             decodeImage, decodeJpeg,
-                                             decodeTiff, imageData, imageHeight,
-                                             imageWidth)
+                                             decodeImage, imageData,
+                                             imageHeight, imageWidth)
 import           Data.Attoparsec.ByteString as P (IResult (Done, Fail, Partial),
                                                   Parser, parse, string,
                                                   takeByteString, takeWhile)
-import           Data.ByteString            (ByteString, append, isPrefixOf)
+import           Data.ByteString            (ByteString, isPrefixOf)
 import           Data.Char                  (chr)
 import qualified Data.Vector.Storable       as V (toList)
 import           EAN13                      (findEAN13_0)
@@ -30,20 +26,6 @@ dataUrlP :: Parser (ByteString, ByteString)
 dataUrlP  = P.string "data:" *>
             ((,) <$> dataTypeP <* P.string ";base64," <*> P.takeByteString)
 
--- All types from `Codec.Picture(decodeImageWithPaletteAndMetadata)`
--- except `png`
--- MIME image types are from here:
--- https://www.digipres.org/formats/mime-types/
-decoders
-  = [ ( "jpeg"         , decodeJpeg   )
-    , ( "bmp"          , decodeBitmap )
-    , ( "gif"          , decodeGif    )
-    , ( "vnd.radiance" , decodeHDR    )
-    , ( "tiff"         , decodeTiff   )
-    -- `.tga` type is not registered with IANA,
-    -- according to https://en.wikipedia.org/wiki/Truevision_TGA
-    ]
-
 parseImageDataUrl :: HasCallStack
   => ByteString -> Either String (Image PixelRGB8)
 parseImageDataUrl r =
@@ -53,26 +35,11 @@ parseImageDataUrl r =
     Done _ _     -> error "Done is unexpected with `dataUrlP`"
   where doDecode (dataType, b64)
           | "image/png" == dataType
-          = Left "PNG images are not supported"
+          = Left "PNG images are not supported by JuicyPixels in a Browser"
           | "image/" `isPrefixOf` dataType
           = fmap convertRGB8 $ decodeImage =<< bs
           | otherwise = Left "Not an image"
           where bs = decode b64
-
-parseImageByteString :: HasCallStack
-  => ByteString -> Either [(String, String)] (String, Image PixelRGB8)
-parseImageByteString bs
-  = foldr decode (Left []) decoders
-  where decode (t, d) r
-          = case d bs of
-              Right i   -> Right (t, convertRGB8 i)
-              Left  err -> case r of
-                Left errs   -> Left ((t, err):errs)
-                r@(Right _) -> r
-
-createDataUrl t bs
-  = "data:image/" `append` t
-  `append` ";base64," `append` encode bs
 
 ean13 :: HasCallStack
   => Image PixelRGB8 -> Either String EAN13
