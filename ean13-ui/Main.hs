@@ -215,14 +215,20 @@ recognizeBarcode img
                           else Bad  r
       Left err -> throw . UIException $ err
 
+scrollToResult = do
+  r <- getElementById "result"
+  smoothScrollIntoView r
+
 updateStage :: JobAction -> BarcodeStage -> Effect JobAction BarcodeStage
 updateStage ReadImage _
   = ImageReadingStage <# do
+      scrollToResult
       exAction $ do
         dataUrl <- readImageFromFile
         return . SetDataUrl $ dataUrl
 updateStage (FetchImage url) _
   = ImageFetchingStage <# do
+      scrollToResult
       job <- async . fetchImage $ url
       return . SetThread (asyncThreadId job) . exAction $ do
         bs <- wait job
@@ -235,7 +241,6 @@ updateStage (SetDataUrl dataUrl) _
           asyncCallback1 $ \dataUrlJS -> do
             dataUrl1 <- ImageDataUrl . toMisoString
                         <$> (fromJSValUnchecked dataUrlJS :: IO JSString)
-            consoleLog ("dataUrl1: " `append` imageDataUrl dataUrl1)
             img <- parseFileImage dataUrl1
             putMVar mvar (dataUrl1, img)
         readMVar mvar
@@ -335,7 +340,8 @@ viewModel m
       ++ (resultView . stage $ m)
 
     resultView s
-      =  [ b_ [] [ text "Barcode recognition result" ], br_ [] ]
+      =  [ b_ [] [ text "Barcode recognition result" ],
+           a_ [ id_ "result" ] [], br_ [] ]
       ++ stageView s
 
     stageView ImageReadingStage
@@ -413,5 +419,8 @@ foreign import javascript unsafe "$r = $1.size;"
   getSize0 :: JSVal -> IO Int
 
 -- See resize.js
-foreign import javascript unsafe "ean13_resize($1, $2)"
+foreign import javascript unsafe "ean13_resize($1, $2);"
   resize :: MisoString -> Callback (JSVal -> IO ()) -> IO ()
+
+foreign import javascript unsafe "$1.scrollIntoView({ behavior: 'smooth' });"
+  smoothScrollIntoView :: JSVal -> IO ()
