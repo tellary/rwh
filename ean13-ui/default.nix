@@ -17,7 +17,10 @@ let
       # Disabling tests for build speed
       # QuickCheck = dontCheck super.QuickCheck;
     });
-in {
-  dev = ghc.callCabal2nix   "ean13-ui" ./. { miso = miso-jsaddle; };
-  release = ghcjs.callCabal2nix "ean13-ui" ./. {};
+  ean13js = ghcjs.callCabal2nix "ean13-ui" ./. {};
+in rec {
+  dev = ghc.callCabal2nix "ean13-ui" ./. { miso = miso-jsaddle; };
+  release = pkgs.haskell.lib.overrideCabal ean13js {
+    postInstall = "cp html/* $exe.jsexe/";
+  };
 }
