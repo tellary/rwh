@@ -30,8 +30,8 @@ import Miso                          (App (..), Effect, View, a_, accept_,
                                       button_, class_, consoleLog,
                                       defaultEvents, div_, getElementById, h1_,
                                       h2_, href_, id_, img_, input_, noEff,
-                                      onChange, onClick, placeholder_, src_,
-                                      startApp, text, type_, (<#))
+                                      onChange, onClick, placeholder_, span_,
+                                      src_, startApp, text, type_, (<#))
 import Miso.String                   (MisoString, append, fromMisoString, ms,
                                       null, toMisoString)
 import Model                         (BarcodeStage (..), EAN13 (..),
@@ -356,21 +356,24 @@ viewModel m
       = eanView result ++
         [ img_ [class_ "barcode", src_ . imageDataUrl $ img] ]
 
+    msgSpan t
+      = span_ [ class_ "message" ] [ text t ]
+
     stageViewTextLine t
-      = [ text t, br_ [], br_ []
+      = [ msgSpan t, br_ [], br_ []
         , div_ [ class_ "barcode" ] []
         ]
 
     stageViewTextLineImg t img
-      = [ text t, br_ [], br_ []
+      = [ msgSpan t, br_ [], br_ []
         , img_ [ class_ "barcode", src_ . imageDataUrl $ img]
         ]
 
     eanView (Good (EAN13 ean13 _))
-      = [ text . ms $ "Barcode: " ++ show ean13, br_ [], br_ [] ]
+      = [ msgSpan . ms $ "Barcode: " ++ show ean13, br_ [], br_ [] ]
     eanView (Bad  (EAN13 ean13 _))
-      = [ text . ms $ "Barcode: " ++ show ean13, br_ [],
-          text        "INACCURATE RESULT: barcode may be incorrect", br_ []
+      = [ msgSpan . ms $ "Barcode: " ++ show ean13, br_ [],
+          msgSpan        "INACCURATE RESULT: barcode may be incorrect", br_ []
         ]
 
     galleryView

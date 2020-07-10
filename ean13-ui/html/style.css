@@ -8,3 +8,7 @@
     display: block;
     height: 266px;
 }
+
+.message {
+    white-space: nowrap;
+}
