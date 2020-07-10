@@ -3,3 +3,8 @@
         font-size: 120%;
     }
 }
+
+.barcode {
+    display: block;
+    height: 266px;
+}

@@ -26,11 +26,12 @@ import JavaScript.Web.XMLHttpRequest (Method (GET), Request (..),
                                       RequestData (NoData), Response (contents),
                                       XHRError, xhrByteString)
 import Miso                          (App (..), Effect, View, a_, accept_,
-                                      asyncCallback, asyncCallback1, b_, br_,
-                                      button_, consoleLog, defaultEvents, div_,
-                                      getElementById, href_, id_, img_, input_,
-                                      noEff, onChange, onClick, placeholder_,
-                                      src_, startApp, text, type_, (<#))
+                                      asyncCallback, asyncCallback1, br_,
+                                      button_, class_, consoleLog,
+                                      defaultEvents, div_, getElementById, h1_,
+                                      h2_, href_, id_, img_, input_, noEff,
+                                      onChange, onClick, placeholder_, src_,
+                                      startApp, text, type_, (<#))
 import Miso.String                   (MisoString, append, fromMisoString, ms,
                                       null, toMisoString)
 import Model                         (BarcodeStage (..), EAN13 (..),
@@ -63,8 +64,10 @@ data JobAction
   | SetResult Result
 
 noBarcodeChosen = "No barcode image chosen"
+
+fetchFirstImageJob = StartJob . FetchImage . itemUrl . head $ goodGallery
 initModel
-  = Model 0 "" Nothing (ErrorStage $ ms noBarcodeChosen)
+  = Model 0 "" Nothing (ErrorStage $ "")
 
 goodGallery
   = [ GalleryItem
@@ -118,7 +121,7 @@ badGallery
     ]
 
 app = App { model         = initModel
-          , initialAction = NoOp
+          , initialAction = fetchFirstImageJob
           , update        = updateModel
           , view          = viewModel
           , events        = defaultEvents
@@ -210,25 +213,23 @@ parseFileImage dataUrl
 recognizeBarcode :: Image PixelRGB8 -> IO Result
 recognizeBarcode img
   = case ean13 img of
-      Right r  -> return $ if eanError r < errorCutoff
-                          then Good r
-                          else Bad  r
+      Right r  -> do
+        consoleLog . ms . show $ r
+        return $ if eanError r < errorCutoff
+                 then Good r
+                 else Bad  r
       Left err -> throw . UIException $ err
-
-scrollToResult = do
-  r <- getElementById "result"
-  smoothScrollIntoView r
 
 updateStage :: JobAction -> BarcodeStage -> Effect JobAction BarcodeStage
 updateStage ReadImage _
   = ImageReadingStage <# do
-      scrollToResult
+      smoothScrollTop
       exAction $ do
         dataUrl <- readImageFromFile
         return . SetDataUrl $ dataUrl
 updateStage (FetchImage url) _
   = ImageFetchingStage <# do
-      scrollToResult
+      smoothScrollTop
       job <- async . fetchImage $ url
       return . SetThread (asyncThreadId job) . exAction $ do
         bs <- wait job
@@ -311,10 +312,11 @@ updateModel NoOp m = noEff m
 
 viewModel :: Model -> View Action
 viewModel m
-  = div_ [] $ [
-    b_ [] [ text "Barcode recognition written in Haskell and \
-                 \running in your browser" ]
-    , br_ [], br_ []
+  = div_ [] $
+    [ h1_ [] [ text "Barcode recognition written in Haskell and \
+                 \running in your browser" ] ]
+    ++ modelView m ++ galleryView ++
+    [ h2_ [] [ text "Load your image" ]
     , text "Choose a barcode image from your file system", br_ []
     , input_ [ id_ "fileReader"
              , type_ "file"
@@ -330,57 +332,51 @@ viewModel m
              , onChange UpdateImageUrl
              ]
     , button_ [ onClick FetchImageAction ] [ text "Fetch barcode"]
-    , text ", or", br_ [], br_ []
-    , text "Pick a sample by clicking a link from the gallery below."
-    ] ++ modelView m
+    ]
   where
-    modelView m
-      =  galleryView
-      ++ [br_ [], br_ []]
-      ++ (resultView . stage $ m)
+    modelView m = stageView . stage $ m
 
-    resultView s
-      =  [ b_ [] [ text "Barcode recognition result" ],
-           a_ [ id_ "result" ] [], br_ [] ]
-      ++ stageView s
-
+    -- We reserve two lines of text for messages (result and result quality)
+    -- and some height for barcode image as defined by `html/style.css`
     stageView ImageReadingStage
-      = [ text "Loading image from file ..." ]
+      = stageViewTextLine    "Loading barcode image from file ..."
     stageView ImageFetchingStage
-      = [ text "Fetching image from url ..." ]
+      = stageViewTextLine    "Fetching barcode image ..."
     stageView (ImageDecodingStage Nothing)
-      = [ text "Decoding image ..." ]
+      = stageViewTextLine    "Decoding bracode image ..."
     stageView (ImageDecodingStage (Just img))
-      = [ text "Decoding image ...", br_ []
-        , img_ [src_ . imageDataUrl $ img]
-        ]
+      = stageViewTextLineImg "Decoding barcode image ..."    img
     stageView (BarcodeRecognitionStage img)
-      = [ text "Recognizing EAN13 barcode ...", br_ []
-        , img_ [src_ . imageDataUrl $ img]
-        ]
+      = stageViewTextLineImg "Recognizing EAN13 barcode ..." img
     stageView (ErrorStage err)
-      = [ text err ]
+      = stageViewTextLine err
     stageView (ErrorImageStage err img)
-      = [ text err, br_ []
-        , img_ [src_ . imageDataUrl $ img]
-        ]
+      = stageViewTextLineImg err img
     stageView (ResultStage result img)
       = eanView result ++
-        [ img_ [src_ . imageDataUrl $ img] ]
+        [ img_ [class_ "barcode", src_ . imageDataUrl $ img] ]
 
-    eanView (Good (EAN13 ean13 err))
-      = [ text . ms $ "Barcode: " ++ show ean13, br_ []
-        , text . ms $ "Recognition error: "   ++ show err, br_ []
-        , text        "(The lower error is the better. 0 is the ideal)", br_ []
+    stageViewTextLine t
+      = [ text t, br_ [], br_ []
+        , div_ [ class_ "barcode" ] []
         ]
-    eanView (Bad  (EAN13 ean13 err))
-      =  [ text        "ERROR TOO LARGE, barcode may be innacurate", br_ [] ]
-      ++ eanView (Good (EAN13 ean13 err))
+
+    stageViewTextLineImg t img
+      = [ text t, br_ [], br_ []
+        , img_ [ class_ "barcode", src_ . imageDataUrl $ img]
+        ]
+
+    eanView (Good (EAN13 ean13 _))
+      = [ text . ms $ "Barcode: " ++ show ean13, br_ [], br_ [] ]
+    eanView (Bad  (EAN13 ean13 _))
+      = [ text . ms $ "Barcode: " ++ show ean13, br_ [],
+          text        "INACCURATE RESULT: barcode may be incorrect", br_ []
+        ]
 
     galleryView
-      =  [br_ [], br_ []
-         , b_ [] [ text "Samples gallery" ]
-         , br_ []
+      =  [ h2_ [] [ text "Samples gallery" ]
+         , text "Pick a sample by clicking a link from the gallery:"
+         , br_ [], br_ []
          ]
       ++ concat (map itemView goodGallery)
       ++ [ br_ [],
@@ -422,5 +418,6 @@ foreign import javascript unsafe "$r = $1.size;"
 foreign import javascript unsafe "ean13_resize($1, $2);"
   resize :: MisoString -> Callback (JSVal -> IO ()) -> IO ()
 
-foreign import javascript unsafe "$1.scrollIntoView({ behavior: 'smooth' });"
-  smoothScrollIntoView :: JSVal -> IO ()
+foreign import javascript unsafe
+  "window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });"
+  smoothScrollTop :: IO ()

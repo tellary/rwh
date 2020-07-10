@@ -1,6 +1,6 @@
 // https://zocada.com/compress-resize-images-javascript-browser/
 function ean13_resize(data, resolve) {
-    const width = 300;
+    const width = 380;
     const img = new Image();
     img.src = data;
     const height = (width/img.width)*img.height;
