@@ -36,4 +36,12 @@ h2 {
     h2 {
         font-size: 1.8em;
     }
+
+    input {
+        font-size: 1.6em;
+    }
+
+    button {
+        font-size: 1.6em;
+    }
 }

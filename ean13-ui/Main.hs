@@ -30,8 +30,8 @@ import Miso                          (App (..), Effect, View, a_, accept_,
                                       button_, class_, consoleLog,
                                       defaultEvents, div_, getElementById, h1_,
                                       h2_, href_, id_, img_, input_, noEff,
-                                      onChange, onClick, placeholder_, span_,
-                                      src_, startApp, text, type_, (<#))
+                                      onChange, onClick, p_, placeholder_,
+                                      span_, src_, startApp, text, type_, (<#))
 import Miso.String                   (MisoString, append, fromMisoString, ms,
                                       null, toMisoString)
 import Model                         (BarcodeStage (..), EAN13 (..),
@@ -317,16 +317,15 @@ viewModel m
                  \running in your browser" ] ]
     ++ modelView m ++ galleryView ++
     [ h2_ [] [ text "Load your image" ]
-    , text "Choose a barcode image from your file system", br_ []
+    , p_ [] [ text "Choose a barcode image from your file system" ]
     , input_ [ id_ "fileReader"
              , type_ "file"
              , accept_ "image/*"
              , onChange (const (StartJob ReadImage))
              ]
-    , text ", or", br_ [], br_ []
-    , text "Fetch a barcode image by providing an URL below", br_ []
-    , text "(please note that an image \
-           \may be blocked by a CORS policy of the image's host)", br_ []
+    , p_ [] [ text "Or, fetch a barcode image by providing an URL below", br_ []
+            , text "(please note that an image \
+                   \may be blocked by a CORS policy of the image's host)" ]
     , input_ [ placeholder_ "Barcode image URL"
              , type_ "url"
              , onChange UpdateImageUrl
