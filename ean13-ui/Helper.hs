@@ -58,13 +58,17 @@ ean13 img = do
 -- 14.25 extra lines in a barcode of 95 lines
 errorCutoff = 0.15
 
--- Quick and dirty rather than "well implemented"
-formatBarcode :: [Int] -> String
+-- Quick and dirty rather than "well implemented" and type safe
+formatBarcode :: [Int] -> (String, Maybe String)
 formatBarcode [d01, d02, d03, d04, d05, d06, d07, d08, d09, d10, d11, d12, d13]
-  | d01 == d02 && d01 == 0
-  = printf "%i %i%i%i%i%i %i%i%i%i%i %i"
-    d01 d03 d04 d05 d06 d07 d08 d09 d10 d11 d12 d13
-  | otherwise
-  = printf "%i %i%i%i%i%i%i %i%i%i%i%i%i"
-    d01 d02 d03 d04 d05 d06 d07 d08 d09 d10 d11 d12 d13
-formatBarcode ds = error "Unexpected barcode length: " ++ show ds
+  = (ean13, upc)
+  where upc
+          | d01 == 0
+          = Just
+            $ printf "%i %i%i%i%i%i %i%i%i%i%i %i"
+              d02 d03 d04 d05 d06 d07 d08 d09 d10 d11 d12 d13
+          | otherwise = Nothing
+        ean13
+          = printf "%i %i%i%i%i%i%i %i%i%i%i%i%i"
+            d01 d02 d03 d04 d05 d06 d07 d08 d09 d10 d11 d12 d13
+formatBarcode ds = error $ "Unexpected barcode length: " ++ show ds

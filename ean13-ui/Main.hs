@@ -10,6 +10,7 @@ import Control.Concurrent.Async      (async, asyncThreadId, wait)
 import Control.Exception             (Handler (Handler), catches, throw)
 import Control.Monad                 (when)
 import Data.Bifunctor                (bimap)
+import Data.Maybe                    (fromJust)
 import Resize                        (byteStringJSDataUrl)
 
 import Codec.Picture                 (Image, PixelRGB8)
@@ -21,7 +22,8 @@ import GHCJS.Foreign                 (isUndefined)
 import GHCJS.Foreign.Callback        (Callback)
 import GHCJS.Marshal                 (fromJSValUnchecked)
 import GHCJS.Types                   (JSString, JSVal)
-import Helper                        (formatBarcode, ean13, errorCutoff, parseImageDataUrl)
+import Helper                        (ean13, errorCutoff, formatBarcode,
+                                      parseImageDataUrl)
 import JavaScript.Web.XMLHttpRequest (Method (GET), Request (..),
                                       RequestData (NoData), Response (contents),
                                       XHRError, xhrByteString)
@@ -30,8 +32,9 @@ import Miso                          (App (..), Effect, View, a_, accept_,
                                       button_, class_, consoleLog,
                                       defaultEvents, div_, getElementById, h1_,
                                       h2_, href_, id_, img_, input_, noEff,
-                                      onChange, onClick, p_, placeholder_,
-                                      span_, src_, startApp, text, type_, (<#))
+                                      onChange, onClick, p_, placeholder_, src_,
+                                      startApp, table_, target_, td_, text, tr_,
+                                      type_, (<#))
 import Miso.String                   (MisoString, append, fromMisoString, ms,
                                       null, toMisoString)
 import Model                         (BarcodeStage (..), EAN13 (..),
@@ -69,34 +72,38 @@ fetchFirstImageJob = StartJob . FetchImage . itemUrl . head $ goodGallery
 initModel
   = Model 0 "" Nothing (ErrorStage $ "")
 
+goodGallery :: [GalleryItem]
 goodGallery
   = [ GalleryItem
       "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_1.jpg"
-      . ms $ formatBarcode [1,2,3,4,5,6,7,8,9,0,1,2,8] ++ ".jpg"
+      . ms $ (fst $ formatBarcode [1,2,3,4,5,6,7,8,9,0,1,2,8]) ++ ".jpg"
     , GalleryItem
       "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_3.jpg"
-      . ms $ formatBarcode [0,7,0,5,6,3,2,0,8,5,9,4,3] ++ ".jpg"
+      . ms $ (fst $ formatBarcode [0,7,0,5,6,3,2,0,8,5,9,4,3]) ++ ".jpg"
     , GalleryItem
       "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_8.bmp"
-      . ms $ formatBarcode [0,1,2,3,4,5,6,7,8,9,1,0,4] ++ ".bmp"
+      . ms $ (fst $ formatBarcode [0,1,2,3,4,5,6,7,8,9,1,0,4]) ++ ".bmp"
     , GalleryItem
       "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_9.gif"
-      . ms $ formatBarcode [0,7,0,5,6,3,2,4,4,1,9,4,7] ++ ".gif"
+      . ms $ (fst $ formatBarcode [0,7,0,5,6,3,2,4,4,1,9,4,7]) ++ ".gif"
     , GalleryItem
       "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13.png"
-      . ms $ formatBarcode [1,2,3,4,5,6,7,8,9,0,1,2,8] ++ ".png"
+      . ms $ (fst $ formatBarcode [1,2,3,4,5,6,7,8,9,0,1,2,8]) ++ ".png"
     , GalleryItem
       "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_4.jpg"
-      . ms $ formatBarcode [3,8,0,0,0,6,5,7,1,1,1,3,5] ++ ".jpg"
+      . ms $ (fst $ formatBarcode [3,8,0,0,0,6,5,7,1,1,1,3,5]) ++ ".jpg"
     , GalleryItem
       "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_5.jpg"
-      . ms $ formatBarcode [4,9,0,2,5,0,6,3,0,4,9,1,9] ++ ".jpg (Color photo)"
+      . ms $ (fst $ formatBarcode [4,9,0,2,5,0,6,3,0,4,9,1,9])
+             ++ ".jpg (Color photo)"
     , GalleryItem
       "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_6.jpeg"
-      . ms $ formatBarcode [0,0,7,2,5,1,2,0,4,4,9,0,2] ++ ".jpg (Photo, Made in Japan)"
+      . ms $ (fromJust . snd $ formatBarcode [0,0,7,2,5,1,2,0,4,4,9,0,2])
+             ++ ".jpg (Photo, Made in Japan)"
     , GalleryItem
       "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_7.jpeg"
-      . ms $ formatBarcode [8,7,1,8,8,6,8,6,6,9,0,7,0] ++ ".jpg (Photo taken from a side)"
+      . ms $ (fst $ formatBarcode [8,7,1,8,8,6,8,6,6,9,0,7,0])
+             ++ ".jpg (Photo taken from a side)"
     ]
 
 badGallery
@@ -310,6 +317,8 @@ updateModel (FetchImageAction) m
   = m <# (return . StartJob . FetchImage . imageUrl $ m)
 updateModel NoOp m = noEff m
 
+nbsp = text "\x00A0"
+
 viewModel :: Model -> View Action
 viewModel m
   = div_ [] $
@@ -352,28 +361,105 @@ viewModel m
     stageView (ErrorImageStage err img)
       = stageViewTextLineImg err img
     stageView (ResultStage result img)
-      = eanView result ++
+      = eanView result :
         [ img_ [class_ "barcode", src_ . imageDataUrl $ img] ]
 
-    msgSpan t
-      = span_ [ class_ "message" ] [ text t ]
-
     stageViewTextLine t
-      = [ msgSpan t, br_ [], br_ []
+      = [ singleMessageTable t
         , div_ [ class_ "barcode" ] []
         ]
 
     stageViewTextLineImg t img
-      = [ msgSpan t, br_ [], br_ []
+      = [ singleMessageTable t
         , img_ [ class_ "barcode", src_ . imageDataUrl $ img]
         ]
 
+    singleMessageTable msg
+      = table_ [ class_ "message-table" ]
+            [ tr_ []
+              [ td_ [] [ nbsp ]
+              , td_ [] []
+              ]
+            , tr_ []
+              [ td_ [] [ text msg ]
+              , td_ [] []
+              ]
+            , tr_ []
+              [ td_ [] [ nbsp ]
+              , td_ [] []
+              ]
+            ]
+
     eanView (Good (EAN13 ean13 _))
-      = [ msgSpan . ms $ "Barcode: " ++ formatBarcode ean13, br_ [], br_ [] ]
+      = case formatBarcode ean13 of
+          (ean13Str, Just upcStr) ->
+            table_ [ class_ "message-table" ]
+            [ tr_ []
+              [ td_ [ class_ "message-label" ] [ text "EAN13:" ]
+              , td_ [] [ text . ms $ ean13Str ]
+              ]
+            , tr_ []
+              [ td_ [ class_ "message-label" ] [ text "UPC:" ]
+              , td_ [] [ text . ms $ upcStr ]
+              ]
+            , tr_ []
+              [ td_ [] []
+              , td_ []
+                [ a_ [ href_ "https://www.barcodestalk.com/resource/\
+                             \what-difference-between-upc-and-ean"
+                     , target_ "_blank"
+                     ]
+                  [ text "EAN13 vs. UPC" ]
+                ]
+              ]
+            ]
+          (ean13Str, Nothing) ->
+            table_ [ class_ "message-table" ]
+            [ tr_ []
+              [ td_ [] [ nbsp ]
+              , td_ [] []
+              ]
+            , tr_ []
+              [ td_ [ class_ "message-label" ] [ text "EAN13:" ]
+              , td_ [] [ text . ms $ ean13Str ]
+              ]
+            , tr_ []
+              [ td_ [] [ nbsp ]
+              , td_ [] []
+              ]
+            ]
     eanView (Bad  (EAN13 ean13 _))
-      = [ msgSpan . ms $ "Barcode: " ++ formatBarcode ean13, br_ [],
-          msgSpan        "INACCURATE RESULT", br_ []
-        ]
+      = case formatBarcode ean13 of
+          (ean13Str, Just upcStr) ->
+            table_ [ class_ "message-table" ]
+            [ tr_ []
+              [ td_ [ class_ "message-label" ] [ text "EAN13:" ]
+              , td_ [] [ text . ms $ ean13Str ]
+              ]
+            , tr_ []
+              [ td_ [ class_ "message-label" ] [ text "UPC:" ]
+              , td_ [] [ text . ms $ upcStr ]
+              ]
+            , tr_ []
+              [ td_ [] []
+              , td_ [] [ text "INACCURATE RESULT" ]
+              ]
+            ]
+          (ean13Str, Nothing) ->
+            table_ [ class_ "message-table" ]
+            [ tr_ []
+              [ td_ [] [ nbsp ]
+              , td_ [] []
+              ]
+            , tr_ []
+              [ td_ [ class_ "message-label" ] [ text "EAN13:" ]
+              , td_ [] [ text . ms $ ean13Str ]
+              ]
+            , tr_ []
+              [ td_ [] []
+              , td_ [] [ text "INACCURATE RESULT" ]
+              ]
+            ]
 
     galleryView
       =  [ h2_ [] [ text "Samples gallery" ]
