@@ -4,6 +4,7 @@
 module Helper
   ( ean13
   , errorCutoff
+  , formatBarcode
   , parseImageDataUrl) where
 
 import           Codec.Base64               (decode)
@@ -20,6 +21,7 @@ import           EAN13                      (findEAN13_0)
 import           GHC.Stack                  (HasCallStack)
 import           Model                      (EAN13 (EAN13))
 import           PPM                        (newPPM)
+import           Text.Printf                (printf)
 
 dataTypeP = P.takeWhile $ \w -> chr (fromIntegral w) /= ';'
 dataUrlP :: Parser (ByteString, ByteString)
@@ -55,3 +57,10 @@ ean13 img = do
 
 -- 14.25 extra lines in a barcode of 95 lines
 errorCutoff = 0.15
+
+-- Quick and dirty rather than "well implemented"
+formatBarcode :: [Int] -> String
+formatBarcode [d01, d02, d03, d04, d05, d06, d07, d08, d09, d10, d11, d12, d13]
+  = printf "%i %i%i%i%i%i%i %i%i%i%i%i%i"
+    d01 d02 d03 d04 d05 d06 d07 d08 d09 d10 d11 d12 d13
+formatBarcode ds = error "Unexpected barcode length: " ++ show ds

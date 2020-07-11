@@ -21,7 +21,7 @@ import GHCJS.Foreign                 (isUndefined)
 import GHCJS.Foreign.Callback        (Callback)
 import GHCJS.Marshal                 (fromJSValUnchecked)
 import GHCJS.Types                   (JSString, JSVal)
-import Helper                        (ean13, errorCutoff, parseImageDataUrl)
+import Helper                        (formatBarcode, ean13, errorCutoff, parseImageDataUrl)
 import JavaScript.Web.XMLHttpRequest (Method (GET), Request (..),
                                       RequestData (NoData), Response (contents),
                                       XHRError, xhrByteString)
@@ -72,31 +72,31 @@ initModel
 goodGallery
   = [ GalleryItem
       "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_1.jpg"
-      "[1,2,3,4,5,6,7,8,9,0,1,2,8].jpg"
+      . ms $ formatBarcode [1,2,3,4,5,6,7,8,9,0,1,2,8] ++ ".jpg"
     , GalleryItem
       "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_3.jpg"
-      "[0,7,0,5,6,3,2,0,8,5,9,4,3].jpg"
+      . ms $ formatBarcode [0,7,0,5,6,3,2,0,8,5,9,4,3] ++ ".jpg"
     , GalleryItem
       "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_8.bmp"
-      "[0,1,2,3,4,5,6,7,8,9,1,0,4].bmp"
+      . ms $ formatBarcode [0,1,2,3,4,5,6,7,8,9,1,0,4] ++ ".bmp"
     , GalleryItem
       "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_9.gif"
-      "[0,7,0,5,6,3,2,4,4,1,9,4,7].gif"
+      . ms $ formatBarcode [0,7,0,5,6,3,2,4,4,1,9,4,7] ++ ".gif"
     , GalleryItem
       "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13.png"
-      "[1,2,3,4,5,6,7,8,9,0,1,2,8].png"
+      . ms $ formatBarcode [1,2,3,4,5,6,7,8,9,0,1,2,8] ++ ".png"
     , GalleryItem
       "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_4.jpg"
-      "[3,8,0,0,0,6,5,7,1,1,1,3,5].jpg"
+      . ms $ formatBarcode [3,8,0,0,0,6,5,7,1,1,1,3,5] ++ ".jpg"
     , GalleryItem
       "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_5.jpg"
-      "[4,9,0,2,5,0,6,3,0,4,9,1,9].jpg (Color photo)"
+      . ms $ formatBarcode [4,9,0,2,5,0,6,3,0,4,9,1,9] ++ ".jpg (Color photo)"
     , GalleryItem
       "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_6.jpeg"
-      "[0,0,7,2,5,1,2,0,4,4,9,0,2].jpg (Photo, Made in Japan)"
+      . ms $ formatBarcode [0,0,7,2,5,1,2,0,4,4,9,0,2] ++ ".jpg (Photo, Made in Japan)"
     , GalleryItem
       "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_7.jpeg"
-      "[8,7,1,8,8,6,8,6,6,9,0,7,0].jpg (Photo taken from a side)"
+      . ms $ formatBarcode [8,7,1,8,8,6,8,6,6,9,0,7,0] ++ ".jpg (Photo taken from a side)"
     ]
 
 badGallery
@@ -369,9 +369,9 @@ viewModel m
         ]
 
     eanView (Good (EAN13 ean13 _))
-      = [ msgSpan . ms $ "Barcode: " ++ show ean13, br_ [], br_ [] ]
+      = [ msgSpan . ms $ "Barcode: " ++ formatBarcode ean13, br_ [], br_ [] ]
     eanView (Bad  (EAN13 ean13 _))
-      = [ msgSpan . ms $ "Barcode: " ++ show ean13, br_ [],
+      = [ msgSpan . ms $ "Barcode: " ++ formatBarcode ean13, br_ [],
           msgSpan        "INACCURATE RESULT", br_ []
         ]
 
