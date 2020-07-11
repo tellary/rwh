@@ -61,6 +61,10 @@ errorCutoff = 0.15
 -- Quick and dirty rather than "well implemented"
 formatBarcode :: [Int] -> String
 formatBarcode [d01, d02, d03, d04, d05, d06, d07, d08, d09, d10, d11, d12, d13]
+  | d01 == d02 && d01 == 0
+  = printf "%i %i%i%i%i%i %i%i%i%i%i %i"
+    d01 d03 d04 d05 d06 d07 d08 d09 d10 d11 d12 d13
+  | otherwise
   = printf "%i %i%i%i%i%i%i %i%i%i%i%i%i"
     d01 d02 d03 d04 d05 d06 d07 d08 d09 d10 d11 d12 d13
 formatBarcode ds = error "Unexpected barcode length: " ++ show ds
