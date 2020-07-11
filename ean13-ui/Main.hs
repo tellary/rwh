@@ -373,13 +373,12 @@ viewModel m
       = [ msgSpan . ms $ "Barcode: " ++ show ean13, br_ [], br_ [] ]
     eanView (Bad  (EAN13 ean13 _))
       = [ msgSpan . ms $ "Barcode: " ++ show ean13, br_ [],
-          msgSpan        "INACCURATE RESULT: barcode may be incorrect", br_ []
+          msgSpan        "INACCURATE RESULT", br_ []
         ]
 
     galleryView
       =  [ h2_ [] [ text "Samples gallery" ]
-         , text "Pick a sample by clicking a link from the gallery:"
-         , br_ [], br_ []
+         , text "Pick a sample by clicking a link from the gallery:" , br_ []
          ]
       ++ concat (map itemView goodGallery)
       ++ [ br_ [],
