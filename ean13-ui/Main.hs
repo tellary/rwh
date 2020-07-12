@@ -200,6 +200,9 @@ readImageFromFile :: IO ImageDataUrl
 readImageFromFile = do
   fileReaderInput <- getElementById "fileReader"
   file            <- getFile fileReaderInput
+  -- Forget the file choosen, so that `onChange` is fired as
+  -- we select the same file again
+  resetFile fileReaderInput
   getSize file >>= \case
     Nothing   -> throw . UIException $ noBarcodeChosen
     Just _ -> do
@@ -484,6 +487,9 @@ foreign import javascript unsafe "$r = new FileReader();"
 
 foreign import javascript unsafe "$r = $1.files[0];"
   getFile :: JSVal -> IO JSVal
+
+foreign import javascript unsafe "$1.value = ''"
+  resetFile :: JSVal -> IO ()
 
 foreign import javascript unsafe "$1.onload = $2;"
   setOnLoad :: JSVal -> Callback (IO ()) -> IO ()
