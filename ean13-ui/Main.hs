@@ -34,7 +34,7 @@ import Miso                          (App (..), Effect, View, a_, accept_,
                                       h2_, href_, id_, img_, input_, noEff,
                                       onChange, onClick, p_, placeholder_, src_,
                                       startApp, table_, target_, td_, text, tr_,
-                                      type_, (<#))
+                                      type_, value_, (<#))
 import Miso.String                   (MisoString, append, fromMisoString, ms,
                                       null, toMisoString)
 import Model                         (BarcodeStage (..), EAN13 (..),
@@ -163,7 +163,7 @@ fetchImage url =
     xhrError (_ :: XHRError) =
       throw . UIException
       $ printf
-        "Failed to fetch image at %s. \
+        "Failed to fetch image at '%s'. \
         \This is most likely caused by the HTTP request being \
         \blocked due to lack of CORS policy headers \
         \in the response. Try to download this URL and read the file \
@@ -336,6 +336,7 @@ viewModel m
             , text "(please note that an image \
                    \may be blocked by a CORS policy of the image's host)" ]
     , input_ [ placeholder_ "Barcode image URL"
+             , value_ . imageUrl $ m
              , type_ "url"
              , onChange UpdateImageUrl
              ]
