@@ -357,7 +357,7 @@ viewModel m
     stageView (BarcodeRecognitionStage img)
       = stageViewTextLineImg "Recognizing EAN13 barcode ..." img
     stageView (ErrorStage err)
-      = stageViewTextLine err
+      = [ text err ]
     stageView (ErrorImageStage err img)
       = stageViewTextLineImg err img
     stageView (ResultStage result img)
