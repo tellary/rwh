@@ -72,6 +72,11 @@ fetchFirstImageJob = StartJob . FetchImage . itemUrl . head $ goodGallery
 initModel
   = Model 0 "" Nothing (ErrorStage $ "")
 
+prilosecUpcItem
+  = GalleryItem
+    "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_10.jpg"
+    . ms $ "0 37000 35906 7.jpg (Well\x00A0" ++ "cropped)"
+
 goodGallery :: [GalleryItem]
 goodGallery
   = [ GalleryItem
@@ -104,6 +109,7 @@ goodGallery
       "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_7.jpeg"
       . ms $ (fst $ formatBarcode [8,7,1,8,8,6,8,6,6,9,0,7,0])
              ++ ".jpg (Photo taken from a side)"
+    , prilosecUpcItem
     ]
 
 badGallery
@@ -125,6 +131,9 @@ badGallery
     , GalleryItem
       "https://ean13-samples.s3-us-west-2.amazonaws.com/racoon.jpeg"
       "Racoon"
+    , GalleryItem
+      "https://ean13-samples.s3-us-west-2.amazonaws.com/ean13_10_nocrop.jpg"
+      $ "0 37000 35906 7.jpg (Not cropped)"      
     ]
 
 app = App { model         = initModel
@@ -324,7 +333,13 @@ updateModel (FetchImageAction) m
   = m <# (return . StartJob . FetchImage . imageUrl $ m)
 updateModel NoOp m = noEff m
 
-nbsp = text "\x00A0"
+nbsp = text . ms $ [ nbspChar ]
+
+nbspChar = '\x00A0'
+
+spcToNbsp c
+  | c == ' '   = nbspChar
+  | otherwise = c
 
 viewModel :: Model -> View Action
 viewModel m
@@ -333,7 +348,14 @@ viewModel m
                  \running in your browser" ] ]
     ++ modelView m ++ galleryView ++
     [ h2_ [] [ text "Load your image" ]
-    , p_ [] [ text "Choose a barcode image from your file system" ]
+    , p_ [] [ text "Choose a barcode image from your file system \
+                   \that is well cropped like the "
+            , itemLink
+              $ GalleryItem
+                (itemUrl prilosecUpcItem)
+                (ms $ map spcToNbsp "0 37000 35906 7.jpg")
+            , text " sample above:"
+            ]
     , input_ [ id_ "fileReader"
              , type_ "file"
              , accept_ "image/*"
@@ -479,12 +501,13 @@ viewModel m
       ++ concat (map itemView badGallery)
 
     itemView i
-      = [ a_ [ href_ . ("#" `append`) . itemDesc $ i
-             , onClick . StartJob . FetchImage . itemUrl $ i
-             ]
-             [ text . itemDesc $ i]
-        , br_ []
-        ]
+      = [ itemLink i, br_ [] ]
+
+    itemLink i
+      = a_ [ href_ . ("#" `append`) . itemDesc $ i
+           , onClick . StartJob . FetchImage . itemUrl $ i
+           ]
+        [ text . itemDesc $ i]
 
 foreign import javascript unsafe "$r = new FileReader();"
   newReader :: IO JSVal
