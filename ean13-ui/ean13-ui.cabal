@@ -11,7 +11,7 @@ executable findean13-ui
   build-depends:       base, miso, ghcjs-dom, mynetpbm, ean13,
                        split, array, transformers, bytestring,
                        containers, JuicyPixels, base-encoding,
-                       attoparsec, vector, async
+                       attoparsec, vector, async, network-uri
   if impl(ghcjs)
     build-depends: ghcjs-base
   else

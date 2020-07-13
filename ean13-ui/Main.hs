@@ -23,7 +23,7 @@ import GHCJS.Foreign.Callback        (Callback)
 import GHCJS.Marshal                 (fromJSValUnchecked)
 import GHCJS.Types                   (JSString, JSVal)
 import Helper                        (ean13, errorCutoff, formatBarcode,
-                                      parseImageDataUrl)
+                                      parseImageDataUrl, validateURL)
 import JavaScript.Web.XMLHttpRequest (Method (GET), Request (..),
                                       RequestData (NoData), Response (contents),
                                       XHRError, xhrByteString)
@@ -155,10 +155,14 @@ fetchImage :: MisoString -> IO ByteString
 fetchImage url =
   exLog ("fetch image at " ++ show url) $ do
     when (null url) $ throw . UIException $ "Can't fetch an empty URL"
-    handle xhrError (contents <$> xhrByteString req) >>= \case
-      Nothing -> throw . UIException
-                 $ printf "Failed to fetch image at %s. Nothing returned" url
-      Just bs -> return bs
+    case validateURL . fromMisoString $ url of
+      Just err -> throw . UIException $ err
+      Nothing  ->
+        handle xhrError (contents <$> xhrByteString req) >>= \case
+          Nothing -> throw . UIException
+                     $ printf
+                       "Failed to fetch image at %s. Nothing returned" url
+          Just bs -> return bs
   where
     xhrError (_ :: XHRError) =
       throw . UIException

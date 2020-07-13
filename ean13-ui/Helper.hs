@@ -5,21 +5,26 @@ module Helper
   ( ean13
   , errorCutoff
   , formatBarcode
-  , parseImageDataUrl) where
+  , parseImageDataUrl
+  , validateURL) where
 
 import           Codec.Base64               (decode)
 import           Codec.Picture              (Image, PixelRGB8, convertRGB8,
                                              decodeImage, imageData,
                                              imageHeight, imageWidth)
+import           Control.Monad              (unless)
 import           Data.Attoparsec.ByteString as P (IResult (Done, Fail, Partial),
                                                   Parser, parse, string,
                                                   takeByteString, takeWhile)
 import           Data.ByteString            (ByteString, isPrefixOf)
 import           Data.Char                  (chr)
+import           Data.List                  (isInfixOf)
 import qualified Data.Vector.Storable       as V (toList)
 import           EAN13                      (findEAN13_0)
 import           GHC.Stack                  (HasCallStack)
 import           Model                      (EAN13 (EAN13))
+import           Network.URI                (URI (uriAuthority, uriScheme),
+                                             URIAuth (uriRegName), parseURI)
 import           PPM                        (newPPM)
 import           Text.Printf                (printf)
 
@@ -72,3 +77,26 @@ formatBarcode [d01, d02, d03, d04, d05, d06, d07, d08, d09, d10, d11, d12, d13]
           = printf "%i %i%i%i%i%i%i %i%i%i%i%i%i"
             d01 d02 d03 d04 d05 d06 d07 d08 d09 d10 d11 d12 d13
 formatBarcode ds = error $ "Unexpected barcode length: " ++ show ds
+
+validateURL :: String -> Maybe String
+validateURL str =
+  case doValidateURL of
+    Left err -> Just err
+    Right () -> Nothing
+  where
+    doValidateURL = do
+      u <- case parseURI str of
+             Nothing -> Left $ printf "Can't parse '%s' as URI" str
+             Just u -> return u
+      let s = uriScheme u
+      unless (s `elem` ["http:", "https:"])
+        . Left
+        $ printf "'http:' or 'https:' scheme is expected but '%s' is found" s
+      case uriAuthority $ u of
+        Nothing -> Left $ printf "Authority not found in '%s'" str
+        Just a  -> do
+          let domain = uriRegName $ a
+          unless (not . null $ domain)
+            . Left $ printf "Domain name not found in '%s'" str
+          unless ("." `isInfixOf` domain)
+            . Left $ printf "A dot must be present in domain name '%s'" str
