@@ -2,11 +2,26 @@
 <html>
   <head>
     <link rel="stylesheet" href="style.css">
-    <script language="javascript" src="rts.js"></script>
-    <script language="javascript" src="lib.js"></script>
-    <script language="javascript" src="out.js"></script>
+    <script language="javascript" src="rts.js" defer></script>
+    <script language="javascript" src="lib.js" defer></script>
+    <script language="javascript" src="out.js" defer></script>
+    <script language="javascript" src="runmain.js" defer></script>
+    <script language="javascript">
+      function removeProgress() {
+          var elem = document.getElementById("progress");
+          elem.parentNode.removeChild(elem);
+      }
+    </script>
   </head>
-  <body>
+  <body onload="removeProgress()">
+    <h1>Barcode recognition written in Haskell and running in your browser</h1>
+    <div id="progress">
+      <table  class="message-table">
+        <tr><td>&nbsp;</td><td/></tr>
+        <tr><td>Loading barcode recognition app...</td><td/><tr/>
+        <tr><td>&nbsp;</td><td/></tr>
+      </table>
+      <div class="barcode"/>
+    </div>
   </body>
-  <script language="javascript" src="runmain.js" defer></script>
 </html>

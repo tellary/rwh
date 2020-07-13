@@ -30,11 +30,11 @@ import JavaScript.Web.XMLHttpRequest (Method (GET), Request (..),
 import Miso                          (App (..), Effect, View, a_, accept_,
                                       asyncCallback, asyncCallback1, br_,
                                       button_, class_, consoleLog,
-                                      defaultEvents, div_, getElementById, h1_,
-                                      h2_, href_, id_, img_, input_, noEff,
-                                      onChange, onClick, p_, placeholder_, src_,
-                                      startApp, table_, target_, td_, text, tr_,
-                                      type_, value_, (<#))
+                                      defaultEvents, div_, getElementById, h2_,
+                                      href_, id_, img_, input_, noEff, onChange,
+                                      onClick, p_, placeholder_, src_, startApp,
+                                      table_, target_, td_, text, tr_, type_,
+                                      value_, (<#))
 import Miso.String                   (MisoString, append, fromMisoString, ms,
                                       null, toMisoString)
 import Model                         (BarcodeStage (..), EAN13 (..),
@@ -343,10 +343,8 @@ spcToNbsp c
 
 viewModel :: Model -> View Action
 viewModel m
-  = div_ [] $
-    [ h1_ [] [ text "Barcode recognition written in Haskell and \
-                 \running in your browser" ] ]
-    ++ modelView m ++ galleryView ++
+  = div_ []
+    $ modelView m ++ galleryView ++
     [ h2_ [] [ text "Load your image" ]
     , p_ [] [ text "Choose a barcode image from your file system \
                    \that is well cropped like the "
