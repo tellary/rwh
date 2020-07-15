@@ -27,14 +27,15 @@ import Helper                        (ean13, errorCutoff, formatBarcode,
 import JavaScript.Web.XMLHttpRequest (Method (GET), Request (..),
                                       RequestData (NoData), Response (contents),
                                       XHRError, xhrByteString)
-import Miso                          (App (..), Effect, View, a_, accept_,
-                                      asyncCallback, asyncCallback1, br_,
-                                      button_, class_, consoleLog,
-                                      defaultEvents, div_, getElementById, h2_,
-                                      href_, id_, img_, input_, noEff, onChange,
-                                      onClick, p_, placeholder_, src_, startApp,
-                                      table_, target_, td_, text, tr_, type_,
-                                      value_, (<#))
+import Miso                          (App (..), Effect, LogLevel (Off), View,
+                                      a_, accept_, asyncCallback,
+                                      asyncCallback1, br_, button_, class_,
+                                      consoleLog, defaultEvents, div_,
+                                      getElementById, h2_, href_, id_, img_,
+                                      input_, noEff, onChange, onClick, p_,
+                                      placeholder_, src_, startApp, table_,
+                                      target_, td_, text, tr_, type_, value_,
+                                      (<#))
 import Miso.String                   (MisoString, append, fromMisoString, ms,
                                       null, toMisoString)
 import Model                         (BarcodeStage (..), EAN13 (..),
@@ -143,6 +144,7 @@ app = App { model         = initModel
           , events        = defaultEvents
           , subs          = []
           , mountPoint    = Nothing
+          , logLevel      = Off
           }
 
 main = startApp app
