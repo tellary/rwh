@@ -35,6 +35,8 @@ h2 {
 
     h1 {
         font-size: 3em;
+        /* Custom margin to minimize clashing with GitHub corner */
+        margin-block-start: 50px;
     }
 
     h2 {
