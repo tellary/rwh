@@ -1,6 +1,6 @@
 with (import (builtins.fetchTarball {
-  url = "https://github.com/dmjio/miso/archive/561ffad.tar.gz";
-  sha256 = "1wwzckz2qxb873wdkwqmx9gmh0wshcdxi7gjwkba0q51jnkfdi41";
+  url = "https://github.com/dmjio/miso/archive/1.7.1.tar.gz";
+  sha256 = "0q44lxzz8pp89ccaiw3iwczha8x2rxjwmgzkxj8cxm97ymsm0diy";
 }) {});
 let
   ghcjs = pkgs.haskell.packages.ghcjs.extend (
