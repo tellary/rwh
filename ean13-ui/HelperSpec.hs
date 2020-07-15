@@ -26,6 +26,12 @@ goodFiles =
   , ("ean13_7.jpeg", [8,7,1,8,8,6,8,6,6,9,0,7,0])
   ]
 
+imgUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAARMAAAC3CAMAAAAGjUrGAAAAflBMVEX///8jHyAAAAAgGx0XERMSCw0GAAAtKSrd3d0NAwaioKGPjo4aFRbJyMgwLS5iYGBST0/39/ezsrLl5eUoJCW9vLyrqqpycHCJh4g8OTlNSkrY19ejoqLy8vLOzc2WlZZ5eHhZVldqaGl/fX1EQUFIRUY/Ozy5uLhdWltubGwA8V49AAAIlklEQVR4nO2YaZuiOhCFQ0GiARQBEVwQF1z6///BW1nAqD0OPXN7rs+dOh8as5Dl5aSSNGMkEolEIv2XyqImZdsoqk2yQUVrllbRRCWxYGxrNY19Y42/ow1jC3wzV/laUc7GEf6pVenWVm2iha6nVafqb1WremOshz0UkXmTYV6jK0/Us9APNQ7GTA+pKVioRjeq8yyq+ikUkW4CC7CeUq3fDu27OqvCRte23k/1AdOULQBsbV9yDgWrAXRbWKDZlMAl7ygCVpkxdgWejvG3EYzZBGDLxiA5LGzVABLG9rqOjPPUU43Xqt6E5QAhq1QRKIKFavTKWKSeFQt1QaG+Cv6SXqpzVAXGTnBSA4J+ChXA2hSMzJdVY+CiZWv1rq+zABvNAMaDmJR8mbJMdExGvudpJjLUTITQTHaB53sdE+F58Z6xQ+AhE8+KIxOhmASeJzomXnBgLIlVuT"
+
+nonImgUrl = "data:someType;base64,iVBORw0KGgoAAAANSUhEUgAAARMAAAC3CAMAAAAGjUrGAAAAflBMVEX///8jHyAAAAAgGx0XERMSCw0GAAAtKSrd3d0NAwaioKGPjo4aFRbJyMgwLS5iYGBST0/39/ezsrLl5eUoJCW9vLyrqqpycHCJh4g8OTlNSkrY19ejoqLy8vLOzc2WlZZ5eHhZVldqaGl/fX1EQUFIRUY/Ozy5uLhdWltubGwA8V49AAAIlklEQVR4nO2YaZuiOhCFQ0GiARQBEVwQF1z6///BW1nAqD0OPXN7rs+dOh8as5Dl5aSSNGMkEolEIv2XyqImZdsoqk2yQUVrllbRRCWxYGxrNY19Y42/ow1jC3wzV/laUc7GEf6pVenWVm2iha6nVafqb1WremOshz0UkXmTYV6jK0/Us9APNQ7GTA+pKVioRjeq8yyq+ikUkW4CC7CeUq3fDu27OqvCRte23k/1AdOULQBsbV9yDgWrAXRbWKDZlMAl7ygCVpkxdgWejvG3EYzZBGDLxiA5LGzVABLG9rqOjPPUU43Xqt6E5QAhq1QRKIKFavTKWKSeFQt1QaG+Cv6SXqpzVAXGTnBSA4J+ChXA2hSMzJdVY+CiZWv1rq+zABvNAMaDmJR8mbJMdExGvudpJjLUTITQTHaB53sdE+F58Z6xQ+AhE8+KIxOhmASeJzomXnBgLIlVuT"
+
+nonImgUrlShort = "data:someType;base64,blahblah"
+
 main = hspec $ do
   describe "Helper" $ do
     it "should work on good files" $
@@ -42,7 +48,7 @@ main = hspec $ do
       validateURL "aaa" `shouldBe` Just "Can't parse 'aaa' as URI"
     it "should check for HTTP scheme" $
       validateURL "ftp://blah.com" `shouldBe`
-      Just "'http:' or 'https:' scheme is expected but 'ftp:' is found"
+      Just "'http:', 'https:' or 'data:' schemes are expected, but 'ftp:' is found"
     it "should fail when no URL authority is present" $
       validateURL "http:" `shouldBe` Just "Authority not found in 'http:'"
     it "should fail when no domain is present" $
@@ -50,3 +56,11 @@ main = hspec $ do
     it "should fail when no dot is present in domain name" $
       validateURL "http://blah/bla.jpg" `shouldBe`
       Just "A dot must be present in domain name 'http://blah/bla.jpg'"
+    it "should fail when on non image data url" $
+      validateURL nonImgUrlShort `shouldBe`
+      Just "Data URL must be an image 'data:someType;base64,blahblah'"
+    it "should fail on long non image data url and crop the url" $
+      validateURL nonImgUrl `shouldBe`
+      Just "Data URL must be an image 'data:someType;base64,iVBORw0KG[...]'"
+    it "should validate data URL" $
+      validateURL imgUrl `shouldBe` Nothing

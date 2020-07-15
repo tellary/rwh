@@ -19,11 +19,12 @@ import           Data.Attoparsec.ByteString as P (IResult (Done, Fail, Partial),
 import           Data.ByteString            (ByteString, isPrefixOf)
 import           Data.Char                  (chr)
 import           Data.List                  (isInfixOf)
+import qualified Data.List                  as L (isPrefixOf)
 import qualified Data.Vector.Storable       as V (toList)
 import           EAN13                      (findEAN13_0)
 import           GHC.Stack                  (HasCallStack)
 import           Model                      (EAN13 (EAN13))
-import           Network.URI                (URI (uriAuthority, uriScheme),
+import           Network.URI                (URI (uriAuthority, uriPath, uriScheme),
                                              URIAuth (uriRegName), parseURI)
 import           PPM                        (newPPM)
 import           Text.Printf                (printf)
@@ -89,14 +90,23 @@ validateURL str =
              Nothing -> Left $ printf "Can't parse '%s' as URI" str
              Just u -> return u
       let s = uriScheme u
-      unless (s `elem` ["http:", "https:"])
+      unless (s `elem` ["http:", "https:", "data:"])
         . Left
-        $ printf "'http:' or 'https:' scheme is expected but '%s' is found" s
-      case uriAuthority $ u of
-        Nothing -> Left $ printf "Authority not found in '%s'" str
-        Just a  -> do
-          let domain = uriRegName $ a
-          unless (not . null $ domain)
-            . Left $ printf "Domain name not found in '%s'" str
-          unless ("." `isInfixOf` domain)
-            . Left $ printf "A dot must be present in domain name '%s'" str
+        $ printf "'http:', 'https:' or 'data:' schemes are expected, \
+                 \but '%s' is found" s
+      if s /= "data:"
+        then
+          case uriAuthority $ u of
+            Nothing -> Left $ printf "Authority not found in '%s'" str
+            Just a  -> do
+              let domain = uriRegName $ a
+              unless (not . null $ domain)
+                . Left $ printf "Domain name not found in '%s'" str
+              unless ("." `isInfixOf` domain)
+                . Left $ printf "A dot must be present in domain name '%s'" str
+        else do
+          unless ("image" `L.isPrefixOf` uriPath u)
+            . Left
+            $ if (length str > 30)
+              then printf "Data URL must be an image '%s[...]'" (take 30 str)
+              else printf "Data URL must be an image '%s'" str
