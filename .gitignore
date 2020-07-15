@@ -11,3 +11,4 @@ dist-newstyle/
 *.js_o
 cabal.project.local
 *.jsexe/
+.DS_Store
