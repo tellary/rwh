@@ -20,6 +20,10 @@ h2 {
     margin-block-end: 0.28em
 }
 
+.github-corner > svg  {
+    height: 80px;
+}
+
 @media (pointer:none), (pointer:coarse) {
     body {
         font-size: 1.2em
@@ -43,5 +47,9 @@ h2 {
 
     button {
         font-size: 1.6em;
+    }
+
+    .github-corner > svg  {
+        height: 160px;
     }
 }
