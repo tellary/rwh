@@ -1,7 +1,7 @@
 set -x
 
 nix-build -A release
-BUCKET=ean13
+BUCKET=ean13.apps.tellary.ru
 aws s3 mb s3://$BUCKET
 aws s3api put-bucket-website --bucket $BUCKET --website-configuration file://website.json
 pushd result/bin/findean13-ui.jsexe/
